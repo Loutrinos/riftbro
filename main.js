@@ -82,7 +82,8 @@ async function importCollection() {
     // Save URLs
     const urlsToSave = [state.sheetUrl1, state.sheetUrl2].filter(u => u);
     localStorage.setItem('sheetUrls', JSON.stringify(urlsToSave));
-    console.log('Saved sheetUrls to localStorage:', urlsToSave);
+    await setDoc(doc(db, 'users', state.user.uid), { sheetUrls: urlsToSave }, { merge: true });
+    console.log('Saved sheetUrls to localStorage and Firebase:', urlsToSave);
 
     // Update state
     state.sheetUrl1 = urlsToSave[0] || '';
@@ -189,26 +190,13 @@ const CardList = {
         m('img.logo', { src: 'images/logo.png', alt: 'Riftbro Logo' }),
         m('button.hamburger', { onclick: e => { e.stopPropagation(); state.menuOpen = !state.menuOpen; } }, '☰'),
         state.menuOpen ? m('div.menu', { onclick: e => e.stopPropagation() }, [
-          state.user ? [
-            m('p.user-info', `Logged in as ${state.user.email}`),
-            m('h4', 'Import Collection from Google Sheets'),
-            Object.keys(state.userCards).length > 0 ? [
-              m('p.current-sheets', 'Current sheets: ' + [state.sheetUrl1, state.sheetUrl2].filter(u => u).join(', ')),
-              m('button', { onclick: clearCollection }, 'Clear Collection')
-            ] : [
-              m('input', { type: 'text', placeholder: 'Google Sheets URL 1', value: state.sheetUrl1, oninput: e => state.sheetUrl1 = e.target.value }),
-              m('input', { type: 'text', placeholder: 'Google Sheets URL 2', value: state.sheetUrl2, oninput: e => state.sheetUrl2 = e.target.value }),
-              m('button', { onclick: importCollection }, 'Import Collection')
-            ],
-            m('button.sign-out', { onclick: () => { auth.signOut(); state.menuOpen = false; } }, 'Sign Out')
-          ] : [
-            m('h3', 'Login'),
-            m('input[type=email][placeholder=Email]', { value: state.email, oninput: e => state.email = e.target.value }),
-            m('input[type=password][placeholder=Password]', { value: state.password, oninput: e => state.password = e.target.value }),
-            m('button', { onclick: handleAuth }, state.authMode === 'signin' ? 'Sign In' : 'Sign Up'),
-            m('button', { onclick: () => state.authMode = state.authMode === 'signin' ? 'signup' : 'signin' }, state.authMode === 'signin' ? 'Need to sign up?' : 'Already have account?'),
-            state.error ? m('p.error', state.error) : null
-          ]
+          m('p.user-info', `Logged in as ${state.user.email}`),
+          m('h4', 'Import Collection from Google Sheets'),
+          m('input', { type: 'text', placeholder: 'Google Sheets URL 1', value: state.sheetUrl1, oninput: e => state.sheetUrl1 = e.target.value }),
+          m('input', { type: 'text', placeholder: 'Google Sheets URL 2', value: state.sheetUrl2, oninput: e => state.sheetUrl2 = e.target.value }),
+          m('button', { onclick: importCollection }, 'Import Collection'),
+          Object.keys(state.userCards).length > 0 ? m('button', { onclick: clearCollection }, 'Clear Collection') : null,
+          m('button.sign-out', { onclick: () => { auth.signOut(); state.menuOpen = false; } }, 'Sign Out')
         ]) : null
       ]),
       m('div.card-list', [
@@ -285,12 +273,30 @@ const CardModal = {
   ]) : null
 };
 
+// Login component
+const Login = {
+  view: () => m('div.login-screen', [
+    m('div.login-container', [
+      m('img.logo', { src: 'images/logo.png', alt: 'Riftbro Logo' }),
+      m('h2', 'Welcome to Riftbro'),
+      m('p', 'Please sign in to access your card collection.'),
+      m('form.login-form', { onsubmit: e => { e.preventDefault(); handleAuth(); } }, [
+        m('input[type=email][placeholder=Email][required]', { value: state.email, oninput: e => state.email = e.target.value }),
+        m('input[type=password][placeholder=Password][required]', { value: state.password, oninput: e => state.password = e.target.value }),
+        m('button[type=submit]', state.authMode === 'signin' ? 'Sign In' : 'Sign Up'),
+        m('button[type=button]', { onclick: () => state.authMode = state.authMode === 'signin' ? 'signup' : 'signin' }, state.authMode === 'signin' ? 'Need to sign up?' : 'Already have account?'),
+        state.error ? m('p.error', state.error) : null
+      ])
+    ])
+  ])
+};
+
 // Main app component
 const App = {
-  view: () => [
+  view: () => state.user ? [
     CardList.view(),
     CardModal.view()
-  ]
+  ] : Login.view()
 };
 
 // Auth handler
@@ -406,7 +412,9 @@ async function loadUserCards(uid) {
   // Then sync with Firebase
   try {
     const userCardsRef = collection(db, 'users', uid, 'cards');
+    console.log('Fetching user cards from Firebase for uid:', uid);
     const querySnapshot = await getDocs(userCardsRef);
+    console.log('Fetched user cards from Firebase, doc count:', querySnapshot.docs.length);
     state.userCards = {};
     querySnapshot.docs.forEach(doc => {
       state.userCards[doc.id] = doc.data();
