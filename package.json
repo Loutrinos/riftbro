@@ -1,0 +1,21 @@
+{
+  "name": "riftbound-app",
+  "version": "1.0.0",
+  "description": "Card collection app with Mithril and Firebase",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "npx serve dist",
+    "load-data": "node loadData.js"
+  },
+  "dependencies": {
+    "firebase": "^9.22.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "mithril": "^2.2.2",
+    "vite": "^7.3.1"
+  }
+}
