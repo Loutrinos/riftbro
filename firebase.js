@@ -4,15 +4,15 @@ import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check.js';
 
-// Firebase configuration using environment variables
+// Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: "AIzaSyA4H55hTkvcSOTrTk6NnNNhIkgN7s95268",
+  authDomain: "riftbro-53782.firebaseapp.com",
+  projectId: "riftbro-53782",
+  storageBucket: "riftbro-53782.firebasestorage.app",
+  messagingSenderId: "452843010226",
+  appId: "1:452843010226:web:aaa6653ea7271de41ab1ab",
+  measurementId: "G-SS1J6PKX3M"
 };
 
 // Initialize Firebase
@@ -20,7 +20,7 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize App Check
 initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
+  provider: new ReCaptchaV3Provider("6LdrMG8sAAAAAPCOm_2y0IwLLqjf5UOsRITlB-fQ"),
   isTokenAutoRefreshEnabled: true
 });
 
