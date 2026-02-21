@@ -1,0 +1,322 @@
+import m from 'mithril';
+
+// ── Legends ───────────────────────────────────────────────────────────────────
+const LEGENDS = [
+  // Origins
+  { id: 'ogn-247', name: 'Daughter of the Void',    champion: "Kai'Sa",       set: 'Origins' },
+  { id: 'ogn-249', name: 'Relentless Storm',          champion: 'Volibear',     set: 'Origins' },
+  { id: 'ogn-251', name: 'Loose Cannon',              champion: 'Jinx',         set: 'Origins' },
+  { id: 'ogn-253', name: 'Hand of Noxus',             champion: 'Darius',       set: 'Origins' },
+  { id: 'ogn-255', name: 'Nine-Tailed Fox',           champion: 'Ahri',         set: 'Origins' },
+  { id: 'ogn-257', name: 'Blind Monk',                champion: 'Lee Sin',      set: 'Origins' },
+  { id: 'ogn-259', name: 'Unforgiven',                champion: 'Yasuo',        set: 'Origins' },
+  { id: 'ogn-261', name: 'Radiant Dawn',              champion: 'Leona',        set: 'Origins' },
+  { id: 'ogn-263', name: 'Swift Scout',               champion: 'Teemo',        set: 'Origins' },
+  { id: 'ogn-265', name: 'Herald of the Arcane',      champion: 'Viktor',       set: 'Origins' },
+  { id: 'ogn-267', name: 'Bounty Hunter',             champion: 'Miss Fortune', set: 'Origins' },
+  { id: 'ogn-269', name: 'The Boss',                  champion: 'Sett',         set: 'Origins' },
+  // Proving Grounds Starters
+  { id: 'ogs-017', name: 'Dark Child',                champion: 'Annie',        set: 'Proving Grounds' },
+  { id: 'ogs-019', name: 'Wuju Bladesman',            champion: 'Master Yi',    set: 'Proving Grounds' },
+  { id: 'ogs-021', name: 'Lady of Luminosity',        champion: 'Lux',          set: 'Proving Grounds' },
+  { id: 'ogs-023', name: 'Might of Demacia',          champion: 'Garen',        set: 'Proving Grounds' },
+  // Spiritforged
+  { id: 'sfd-181', name: 'Mechanized Menace',         champion: 'Rumble',       set: 'Spiritforged' },
+  { id: 'sfd-183', name: 'Purifier',                  champion: 'Lucian',       set: 'Spiritforged' },
+  { id: 'sfd-185', name: 'Glorious Executioner',      champion: 'Draven',       set: 'Spiritforged' },
+  { id: 'sfd-187', name: 'Void Burrower',             champion: "Rek'Sai",      set: 'Spiritforged' },
+  { id: 'sfd-189', name: 'Fire Below the Mountain',   champion: 'Ornn',         set: 'Spiritforged' },
+  { id: 'sfd-193', name: 'Grandmaster at Arms',       champion: 'Jax',          set: 'Spiritforged' },
+  { id: 'sfd-195', name: 'Blade Dancer',              champion: 'Irelia',       set: 'Spiritforged' },
+  { id: 'sfd-197', name: 'Emperor of the Sands',      champion: 'Azir',         set: 'Spiritforged' },
+  { id: 'sfd-199', name: 'Prodigal Explorer',         champion: 'Ezreal',       set: 'Spiritforged' },
+  { id: 'sfd-201', name: 'Chem-Baroness',             champion: 'Renata Glasc', set: 'Spiritforged' },
+  { id: 'sfd-203', name: 'Battle Mistress',           champion: 'Sivir',        set: 'Spiritforged' },
+  { id: 'sfd-205', name: 'Grand Duelist',             champion: 'Fiora',        set: 'Spiritforged' },
+];
+
+const SETS = [...new Set(LEGENDS.map(l => l.set))];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  phase: 'setup', // 'setup' | 'match'
+
+  // Setup inputs
+  setup: {
+    p1name: '',
+    p1legend: '',
+    p2name: '',
+    p2legend: '',
+    target: 8,
+  },
+
+  // Match state
+  match: {
+    players: [
+      { name: '', legendName: '', champion: '', points: 0 },
+      { name: '', legendName: '', champion: '', points: 0 },
+    ],
+    target: 8,
+    activeTurn: 1,           // 0 = top (P1), 1 = bottom (P2)
+    winner: null,            // null | 0 | 1
+    timerSeconds: 3600,      // 60 minutes
+    timerRunning: false,
+    timerInterval: null,
+  },
+};
+
+// ── Timer helpers ─────────────────────────────────────────────────────────────
+function startTimer() {
+  if (state.match.timerRunning) return;
+  state.match.timerRunning = true;
+  state.match.timerInterval = setInterval(() => {
+    if (state.match.timerSeconds > 0) {
+      state.match.timerSeconds--;
+    } else {
+      stopTimer();
+    }
+    m.redraw();
+  }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(state.match.timerInterval);
+  state.match.timerRunning = false;
+}
+
+function toggleTimer() {
+  if (state.match.timerRunning) stopTimer();
+  else startTimer();
+  m.redraw();
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0');
+  const s = (secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+// ── Match actions ─────────────────────────────────────────────────────────────
+function changePoints(playerIdx, delta) {
+  if (state.match.winner !== null) return;
+  const p = state.match.players[playerIdx];
+  p.points = Math.max(0, p.points + delta);
+  if (p.points >= state.match.target) {
+    state.match.winner = playerIdx;
+    stopTimer();
+  }
+}
+
+function endTurn() {
+  if (state.match.winner !== null) return;
+  state.match.activeTurn = state.match.activeTurn === 0 ? 1 : 0;
+  // Auto-start timer on first end turn
+  if (!state.match.timerRunning && state.match.timerSeconds === 3600) {
+    startTimer();
+  }
+}
+
+function startMatch() {
+  const s = state.setup;
+  const p1 = LEGENDS.find(l => l.id === s.p1legend);
+  const p2 = LEGENDS.find(l => l.id === s.p2legend);
+
+  state.match = {
+    players: [
+      { name: s.p1name.trim() || 'Player 1', legendName: p1 ? p1.name : '—', champion: p1 ? p1.champion : '', points: 0 },
+      { name: s.p2name.trim() || 'Player 2', legendName: p2 ? p2.name : '—', champion: p2 ? p2.champion : '', points: 0 },
+    ],
+    target: s.target,
+    activeTurn: 1,
+    winner: null,
+    timerSeconds: 3600,
+    timerRunning: false,
+    timerInterval: null,
+  };
+  state.phase = 'match';
+}
+
+function resetToSetup() {
+  stopTimer();
+  state.phase = 'setup';
+}
+
+// ── Setup component ───────────────────────────────────────────────────────────
+const Setup = {
+  view() {
+    const s = state.setup;
+    const canStart = s.p1legend && s.p2legend;
+
+    const legendDropdown = (value, onchange) =>
+      m('select.setup-select', { value, onchange },
+        m('option', { value: '', disabled: true }, '— Choose a legend —'),
+        SETS.map(set =>
+          m('optgroup', { label: set },
+            LEGENDS.filter(l => l.set === set).map(l =>
+              m('option', { value: l.id }, `${l.name} (${l.champion})`)
+            )
+          )
+        )
+      );
+
+    return m('.setup-page', [
+      m('img.setup-logo', { src: `${import.meta.env.BASE_URL}logo.png`, alt: 'Riftbro' }),
+      m('h1.setup-title', 'Match Setup'),
+
+      m('.setup-form', [
+
+        // Players
+        m('.setup-players', [
+          // Player 1
+          m('.player-setup-card', [
+            m('h3', 'Player 1'),
+            m('input.setup-input', {
+              type: 'text',
+              placeholder: 'Player name…',
+              value: s.p1name,
+              oninput: e => s.p1name = e.target.value,
+              maxlength: 20,
+            }),
+            legendDropdown(s.p1legend, e => s.p1legend = e.target.value),
+          ]),
+          // Player 2
+          m('.player-setup-card', [
+            m('h3', 'Player 2'),
+            m('input.setup-input', {
+              type: 'text',
+              placeholder: 'Player name…',
+              value: s.p2name,
+              oninput: e => s.p2name = e.target.value,
+              maxlength: 20,
+            }),
+            legendDropdown(s.p2legend, e => s.p2legend = e.target.value),
+          ]),
+        ]),
+
+        // Points target
+        m('.setup-section', [
+          m('h3', 'Points to win'),
+          m('.pts-options', [
+            m('button.pts-btn', {
+              class: s.target === 8 ? 'pts-btn active' : 'pts-btn',
+              onclick: () => s.target = 8,
+            }, '8 pts'),
+            m('button.pts-btn', {
+              class: s.target === 9 ? 'pts-btn active' : 'pts-btn',
+              onclick: () => s.target = 9,
+            }, '9 pts'),
+          ]),
+        ]),
+
+        // Start
+        m('button.start-btn', {
+          disabled: !canStart,
+          onclick: startMatch,
+        }, 'Begin Match'),
+
+        m('a.setup-home', { href: '../' }, '← Back to hub'),
+      ]),
+    ]);
+  },
+};
+
+// ── Player half component ─────────────────────────────────────────────────────
+const PlayerHalf = {
+  view({ attrs: { playerIdx, position } }) {
+    const match = state.match;
+    const p = match.players[playerIdx];
+    const isActive = match.activeTurn === playerIdx;
+    const isWinner = match.winner === playerIdx;
+    const atTarget = p.points >= match.target;
+
+    return m(`.player-half.${position}`, { class: isActive ? 'active-turn' : '' }, [
+      m('.turn-pip'),
+
+      m('.player-name', p.name),
+      m('.legend-name', p.champion
+        ? `${p.legendName} · ${p.champion}`
+        : p.legendName),
+
+      m('.points-row', [
+        m('button.pts-counter-btn.minus', {
+          onclick: () => { changePoints(playerIdx, -1); },
+          disabled: p.points <= 0 || match.winner !== null,
+        }, '−'),
+        m('.pts-display', { class: atTarget ? 'at-target' : '' }, p.points),
+        m('button.pts-counter-btn.plus', {
+          onclick: () => { changePoints(playerIdx, 1); },
+          disabled: match.winner !== null,
+        }, '+'),
+      ]),
+
+      m('.pts-target', `First to ${match.target}`),
+
+      isWinner && m('.win-overlay', [
+        m('.win-label', `🏆 ${p.name} wins!`),
+        m('.win-sub', `${p.points} points · ${formatTime(3600 - match.timerSeconds)} played`),
+      ]),
+    ]);
+  },
+};
+
+// ── Divider strip ─────────────────────────────────────────────────────────────
+const MatchDivider = {
+  view() {
+    const match = state.match;
+    const secs = match.timerSeconds;
+    let timerClass = 'timer-display';
+    if (!match.timerRunning && secs < 3600) timerClass += ' paused';
+    else if (secs <= 60)  timerClass += ' critical';
+    else if (secs <= 300) timerClass += ' warning';
+
+    return m('.match-divider', [
+
+      // New game
+      m('button.new-game-btn', { onclick: resetToSetup }, [
+        m('span.btn-icon', '⟳'),
+        m('span.btn-label', 'New'),
+      ]),
+
+      // Timer + turn dots
+      m('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:6px;' }, [
+        m('.turn-indicators', [
+          m('.turn-dot', { class: match.activeTurn === 0 ? 'active' : '' }),
+          m('.turn-dot', { class: match.activeTurn === 1 ? 'active' : '' }),
+        ]),
+        m('button.timer-btn', { onclick: toggleTimer, title: match.timerRunning ? 'Pause' : 'Resume' }, [
+          m('.' + timerClass, formatTime(secs)),
+          m('.timer-label', match.timerRunning ? 'tap to pause' : (secs < 3600 ? 'paused' : 'tap to start')),
+        ]),
+      ]),
+
+      // End turn
+      m('button.end-turn-btn', {
+        onclick: endTurn,
+        disabled: match.winner !== null,
+      }, [
+        m('span.btn-arrow', '⇄'),
+        m('span.btn-label', 'End Turn'),
+      ]),
+    ]);
+  },
+};
+
+// ── Match screen ──────────────────────────────────────────────────────────────
+const Match = {
+  view() {
+    return m('.match-screen', [
+      m(PlayerHalf, { playerIdx: 0, position: 'top' }),
+      m(MatchDivider),
+      m(PlayerHalf, { playerIdx: 1, position: 'bottom' }),
+    ]);
+  },
+};
+
+// ── Root component ────────────────────────────────────────────────────────────
+const App = {
+  view() {
+    return state.phase === 'setup' ? m(Setup) : m(Match);
+  },
+};
+
+m.mount(document.getElementById('app'), App);

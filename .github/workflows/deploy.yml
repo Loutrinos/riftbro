@@ -42,6 +42,16 @@ jobs:
         env:
           VITE_BASE: /riftbro/give/
 
+      - name: Install match/ dependencies
+        run: npm ci
+        working-directory: match
+
+      - name: Build match/ app
+        run: npm run build
+        working-directory: match
+        env:
+          VITE_BASE: /riftbro/match/
+
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
