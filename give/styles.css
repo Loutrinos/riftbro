@@ -46,6 +46,22 @@ body {
     opacity: 0.85;
 }
 
+.header-nav-link {
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    transition: border-color 0.2s, background-color 0.2s;
+    white-space: nowrap;
+}
+
+.header-nav-link:hover {
+    border-color: var(--accent-color);
+    background-color: rgba(30, 97, 32, 0.15);
+}
+
 /* ── Main content ── */
 .main {
     padding: 80px 20px 40px;

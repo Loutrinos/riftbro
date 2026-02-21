@@ -128,6 +128,9 @@ async function importCollection() {
   }
 }
 
+// Resolve the Trade Matcher URL — works for both local dev and GitHub Pages
+const tradeMatcherUrl = 'give/';
+
 // App state
 let state = {
   user: null,
@@ -240,6 +243,7 @@ const CardList = {
     return m('div', { onclick: () => state.menuOpen = false }, [
       m('header.header', [
         m('img.logo', { src: 'images/logo.png', alt: 'Riftbro Logo' }),
+        m('a.header-nav-link', { href: 'give/', title: 'Trade Matcher' }, '⇄ Trade Matcher'),
         m('button.hamburger', { onclick: e => { e.stopPropagation(); state.menuOpen = !state.menuOpen; } }, '☰'),
         state.menuOpen ? m('div.menu', { onclick: e => e.stopPropagation() }, [
           m('p.user-info', `Logged in as ${state.user.email}`),

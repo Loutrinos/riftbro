@@ -1,3 +1,8 @@
 export default {
-  base: '/riftbro/'  // Replace 'riftbro' with your GitHub repo name
+  base: '/riftbro/',
+  server: {
+    proxy: {
+      '/riftbro/give': 'http://localhost:5174',
+    }
+  }
 }

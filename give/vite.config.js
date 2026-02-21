@@ -1,8 +1,11 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: process.env.VITE_BASE || '/give/',
+  base: '/riftbro/give/',
   publicDir: '../images',
+  server: {
+    port: 5174,
+  },
   build: {
     outDir: '../dist/give',
     emptyOutDir: true,

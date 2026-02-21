@@ -2,6 +2,9 @@ import m from 'mithril';
 import { fetchUserList } from './parser.js';
 import { compare } from './compare.js';
 
+// Resolve the main app URL — works for both local dev and GitHub Pages
+const mainAppUrl = '../';
+
 // ── URL state sync ────────────────────────────────────────────────────────────
 function getParams() {
   const p = new URLSearchParams(window.location.search);
@@ -59,7 +62,8 @@ async function findMatches() {
 const Header = {
   view() {
     return m('.header', [
-      m('img.logo', { src: 'logo.png', alt: 'Riftbound Logo' }),
+      m('img.logo', { src: `${import.meta.env.BASE_URL}logo.png`, alt: 'Riftbound Logo' }),
+      m('a.header-nav-link', { href: '../' }, '← Main App'),
       m('.header-title', 'Trade Matcher'),
     ]);
   },
@@ -71,7 +75,7 @@ const CardRow = {
       m('img.card-thumb', {
         src: card.imageUrl,
         alt: card.cardId,
-        onerror(e) { e.target.src = 'no-image.png'; },
+        onerror(e) { e.target.src = `${import.meta.env.BASE_URL}no-image.png`; },
       }),
       m('.card-info', [
         m('.card-name', m('a', { href: card.cardUrl, target: '_blank', rel: 'noopener' }, card.cardId)),
