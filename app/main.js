@@ -129,7 +129,7 @@ async function importCollection() {
 }
 
 // Resolve the Trade Matcher URL — works for both local dev and GitHub Pages
-const tradeMatcherUrl = 'give/';
+const tradeMatcherUrl = '../give/';
 
 // App state
 let state = {
@@ -242,8 +242,8 @@ const CardList = {
     });
     return m('div', { onclick: () => state.menuOpen = false }, [
       m('header.header', [
-        m('img.logo', { src: 'images/logo.png', alt: 'Riftbro Logo' }),
-        m('a.header-nav-link', { href: 'give/', title: 'Trade Matcher' }, '⇄ Trade Matcher'),
+        m('img.logo', { src: import.meta.env.BASE_URL + 'logo.png', alt: 'Riftbro Logo' }),
+        m('a.header-nav-link', { href: tradeMatcherUrl, title: 'Trade Matcher' }, '⇄ Trade Matcher'),
         m('button.hamburger', { onclick: e => { e.stopPropagation(); state.menuOpen = !state.menuOpen; } }, '☰'),
         state.menuOpen ? m('div.menu', { onclick: e => e.stopPropagation() }, [
           m('p.user-info', `Logged in as ${state.user.email}`),
@@ -382,7 +382,7 @@ const Login = {
         state.error ? m('p.error', state.error) : null
       ]),
       m('div.login-divider', m('span', 'or')),
-      m('a.trade-matcher-link', { href: 'give/' }, [
+      m('a.trade-matcher-link', { href: tradeMatcherUrl }, [
         m('span.trade-matcher-icon', '⇄'),
         m('span', 'Trade Matcher'),
         m('small', 'Compare wishlists & trade lists — no login required'),

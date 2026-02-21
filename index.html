@@ -3,14 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Riftbound Card App</title>
+  <title>Riftbro</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://www.google.com/recaptcha/api.js"></script>
 </head>
 <body>
-  <div id="app"></div>
-  <script type="module" src="https://cdn.jsdelivr.net/npm/hover-tilt/dist/hover-tilt.js"></script>
-  <script type="module" src="firebase.js"></script>
-  <script type="module" src="main.js"></script>
+  <header>
+    <img src="logo.png" alt="Riftbro" class="logo">
+    <h1>Riftbro</h1>
+    <p>Riftbound companion tools</p>
+  </header>
+  <main>
+    <a class="app-card" href="app/">
+      <div class="app-card-icon">🃏</div>
+      <div class="app-card-body">
+        <h2>Card Collection</h2>
+        <p>Track your Riftbound card collection, trades, and wishlist</p>
+      </div>
+    </a>
+    <a class="app-card" href="give/">
+      <div class="app-card-icon">⇄</div>
+      <div class="app-card-body">
+        <h2>Trade Matcher</h2>
+        <p>Find which cards you and another player can trade with each other</p>
+      </div>
+    </a>
+  </main>
 </body>
 </html>

@@ -16,11 +16,21 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install root dependencies
+      - name: Install hub dependencies
         run: npm ci
 
-      - name: Build root app
+      - name: Build hub
         run: npm run build
+
+      - name: Install app/ dependencies
+        run: npm ci
+        working-directory: app
+
+      - name: Build app/
+        run: npm run build
+        working-directory: app
+        env:
+          VITE_BASE: /riftbro/app/
 
       - name: Install give/ dependencies
         run: npm ci

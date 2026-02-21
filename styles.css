@@ -1,476 +1,98 @@
+/* Riftbro Hub */
 :root {
-    --text-color: #f2f2f2;
-    --bg-color: #252525;
-    --accent-color: #1e6120;
-    --border-color: #525252;
-    --font-family: Arial, sans-serif;
-    --header-bg: #2b2b2b;
-    --header-box-shadow-color: rgba(0, 0, 0, 0.3);
-    --modal-bg-color: rgba(0, 0, 0, 0.8);
-    --footer-bg: #2b2b2b;
-    --card-border-radius: 16px;
-    --badge-color: rgb(43, 189, 43);
+  --bg: #0d0d0d;
+  --surface: #1a1a2e;
+  --surface2: #22223a;
+  --accent: #c8a951;
+  --text: #e8e0cc;
+  --text-muted: #8888aa;
+  --border: #2a2a3e;
+  --radius: 12px;
 }
 
-html,body, * {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-    margin: 0;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    font-family: var(--font-family);
-}
-
-.auth {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    gap: 10px;
-}
-
-.auth input {
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--header-bg);
-    color: var(--text-color);
-}
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    background-color: var(--header-bg);
-    box-shadow: 0 2px 4px var(--header-box-shadow-color);
-    position: fixed;
-    top: 0;
-    width: 100%;
-    z-index: 1000;
-}
-
-.logo {
-    height: 40px;
-}
-
-.header-nav-link {
-    color: var(--text-color);
-    text-decoration: none;
-    font-size: 0.85rem;
-    padding: 6px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    transition: border-color 0.2s, background-color 0.2s;
-    white-space: nowrap;
-}
-
-.header-nav-link:hover {
-    border-color: var(--accent-color);
-    background-color: rgba(30, 97, 32, 0.15);
-}
-
-.hamburger {
-    background: none;
-    border: none;
-    color: var(--text-color);
-    font-size: 24px;
-    cursor: pointer;
-}
-
-.menu {
-    position: fixed;
-    top: 60px;
-    right: 20px;
-    background-color: var(--header-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 20px;
-    width: 300px;
-    z-index: 1001;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-}
-
-.menu h3 {
-    margin-top: 0;
-}
-
-.menu input {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-}
-
-.menu h4 {
-    margin: 10px 0 5px 0;
-    font-size: 14px;
-}
-
-.menu input[type=text] {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-}
-
-.user-info {
-    margin: 0 0 10px 0;
-    font-size: 14px;
-}
-
-.current-sheets {
-    font-size: 12px;
-    word-wrap: break-word;
-    margin: 0 0 10px 0;
-}
-
-.auth .error {
-    color: red;
-}
-
-header.header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    background-color: var(--header-bg);
-    padding: 10px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    z-index: 100;
-    box-shadow: 0 2px 5px var(--header-box-shadow-color);
-}
-
-.logo {
-    height: 40px;
-    width: auto;
-}
-
-.sign-out {
-    padding: 8px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--accent-color);
-    color: var(--text-color);
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.sign-out:hover {
-    background-color: #155a18;
-}
-
-.card-list {
-    padding: 80px 20px 20px 20px; /* Adjust for fixed header */
-}
-
-.filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 20px;
-    padding: 10px;
-    background-color: var(--header-bg);
-    border-radius: 8px;
-}
-
-.filters select {
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-}
-
-.clear-filters {
-    padding: 8px 16px;
-    background-color: var(--accent-color);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.clear-filters:hover {
-    background-color: #2e7d32;
-}
-
-.filters label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-    user-select: none;
-}
-
-.filters input[type="checkbox"] {
-    cursor: pointer;
-    margin: 0;
-    width: 16px;
-    height: 16px;
-    accent-color: var(--accent-color);
-}
-
-.collection {
-    display: flex;
-    justify-content: space-around;
-    margin-top: 5px;
-    font-size: 12px;
-}
-
-.normal {
-    color: var(--text-color);
-}
-
-.foil {
-    background: linear-gradient(to right, #c0c0c0, #ffffff);
-    color: #000;
-    padding: 2px 4px;
-    border-radius: 4px;
-}
-
-.trade {
-    background: #4CAF50;
-    color: #fff;
-    padding: 2px 4px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-}
-
-.master {
-    background: #2196F3;
-    color: #fff;
-    padding: 2px 4px;
-    border-radius: 4px;
-}
-
-.trade-btn {
-    background: none;
-    border: none;
-    color: #fff;
-    cursor: pointer;
-    margin: 0 2px;
-    padding: 0 4px;
-    font-size: 14px;
-}
-
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 280px));
-    gap: 10px;
-    justify-content: center;
-}
-
-.card {
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 10px;
-    text-align: center;
-    cursor: pointer;
-    min-height: 360px;
-}
-
-@media (max-width: 600px) {
-    .grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .card {
-        min-height: 200px;
-    }
-}
-
-.card img {
-    width: 100%;
-    border-radius: 8px;
-}
-
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--modal-bg-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    border-radius: 8px;
-    max-width: 800px;
-    max-height: 90%;
-    position: relative;
-    display: flex;
-    gap: 20px;
-}
-
-.modal-image {
-  flex: 0 0 auto;
-  border-radius: 24px;
-}
-
-hover-tilt, hover-tilt::part(container) { 
-    border-radius: 24px;
-}
-
-.modal-image img {
-  max-width: 500px;
-  height: auto;
-  border-radius: 24px;
-  display: block;
-}
-
-@media (max-width: 900px) {
-  .modal-content {
-    flex-direction: column;
-    max-width: 90%;
-  }
-  
-  .modal-image img {
-    max-width: 100%;
-  }
-}
-
-/* Login screen styles */
-.login-screen {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: var(--bg-color);
+  padding: 2rem;
+  gap: 2.5rem;
 }
 
-.login-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40px;
-  background-color: var(--header-bg);
-  border-radius: 8px;
-  box-shadow: 0 4px 8px var(--header-box-shadow-color);
-  max-width: 400px;
-  width: 100%;
-}
-
-.login-container .logo {
-  width: 100px;
-  height: auto;
-  margin-bottom: 20px;
-}
-
-.login-container h2 {
-  margin: 0 0 10px 0;
-  color: var(--text-color);
-}
-
-.login-container p {
-  margin: 0 0 30px 0;
+header {
   text-align: center;
-  color: var(--text-color);
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  gap: 15px;
-}
-
-.login-form input {
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  font-size: 16px;
-}
-
-.login-form button {
-  padding: 12px;
-  border: none;
-  border-radius: 4px;
-  background-color: var(--accent-color);
-  color: var(--text-color);
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.login-form button:hover {
-  background-color: #2a7a2a;
-}
-
-.login-form .error {
-  color: #ff6b6b;
-  text-align: center;
-  margin: 0;
-}
-
-.login-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 20px 0 16px;
-  color: var(--border-color);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.login-divider::before,
-.login-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background-color: var(--border-color);
-}
-
-.trade-matcher-link {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 14px 20px;
-  background-color: var(--bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  gap: 0.5rem;
+}
+
+.logo {
+  height: 80px;
+  width: auto;
+}
+
+header h1 {
+  font-size: 2.2rem;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+header p {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+main {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.app-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 2.5rem;
   text-decoration: none;
-  color: var(--text-color);
-  transition: border-color 0.2s, background-color 0.2s;
-  cursor: pointer;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 240px;
+  transition: border-color 0.2s, transform 0.15s, background 0.2s;
 }
 
-.trade-matcher-link:hover {
-  border-color: var(--accent-color);
-  background-color: rgba(30, 97, 32, 0.1);
+.app-card:hover {
+  border-color: var(--accent);
+  background: var(--surface2);
+  transform: translateY(-3px);
 }
 
-.trade-matcher-icon {
-  font-size: 1.4rem;
-  color: var(--badge-color);
+.app-card-icon {
+  font-size: 2.5rem;
 }
 
-.trade-matcher-link span:not(.trade-matcher-icon) {
-  font-weight: bold;
-  font-size: 0.95rem;
+.app-card-body {
+  text-align: center;
 }
 
-.trade-matcher-link small {
-  font-size: 0.75rem;
-  opacity: 0.55;
+.app-card-body h2 {
+  font-size: 1.15rem;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+
+.app-card-body p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
 }

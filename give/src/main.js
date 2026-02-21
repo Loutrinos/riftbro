@@ -3,7 +3,7 @@ import { fetchUserList } from './parser.js';
 import { compare } from './compare.js';
 
 // Resolve the main app URL — works for both local dev and GitHub Pages
-const mainAppUrl = '../';
+const mainAppUrl = '../app/';
 
 // ── URL state sync ────────────────────────────────────────────────────────────
 function getParams() {
