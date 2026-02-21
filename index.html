@@ -4,14 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Riftbro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <canvas id="bg-canvas"></canvas>
+
   <header>
     <img src="logo.png" alt="Riftbro" class="logo">
     <h1>Riftbro</h1>
     <p>Riftbound companion tools</p>
   </header>
+
   <main>
     <a class="app-card" href="app/">
       <div class="app-card-icon">🃏</div>
@@ -28,5 +34,101 @@
       </div>
     </a>
   </main>
+
+  <script>
+    // ── Floating particles ────────────────────────────────────────────────────
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+
+    function makeParticle() {
+      return {
+        x: rand(0, canvas.width),
+        y: rand(0, canvas.height),
+        r: rand(0.5, 2.0),
+        alpha: rand(0.08, 0.42),
+        speed: rand(0.1, 0.42),
+        drift: rand(-0.16, 0.16),
+        phase: rand(0, Math.PI * 2),
+        phaseSpeed: rand(0.008, 0.025),
+      };
+    }
+
+    const particles = Array.from({ length: 90 }, makeParticle);
+
+    (function tick() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of particles) {
+        p.y -= p.speed;
+        p.x += p.drift;
+        p.phase += p.phaseSpeed;
+        const a = p.alpha * (0.55 + 0.45 * Math.sin(p.phase));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200,169,81,${a})`;
+        ctx.fill();
+        if (p.y < -10 || p.x < -20 || p.x > canvas.width + 20) {
+          Object.assign(p, makeParticle());
+          p.y = canvas.height + 10;
+          p.x = rand(0, canvas.width);
+        }
+      }
+      requestAnimationFrame(tick);
+    })();
+
+    // ── 3-D tilt on hover ────────────────────────────────────────────────────
+    document.querySelectorAll('.app-card').forEach(card => {
+      let raf;
+      let targetRX = 0, targetRY = 0, currentRX = 0, currentRY = 0;
+      let hovering = false;
+
+      function lerp(a, b, t) { return a + (b - a) * t; }
+
+      function animate() {
+        currentRX = lerp(currentRX, targetRX, 0.1);
+        currentRY = lerp(currentRY, targetRY, 0.1);
+        const scale = hovering ? 1.06 : 1.0;
+        const sc = lerp(parseFloat(card.dataset.sc || '1'), scale, 0.1);
+        card.dataset.sc = sc;
+        card.style.transform =
+          `perspective(700px) rotateY(${currentRY}deg) rotateX(${currentRX}deg) scale(${sc.toFixed(4)})`;
+        if (hovering || Math.abs(currentRX) > 0.02 || Math.abs(currentRY) > 0.02 || Math.abs(sc - scale) > 0.001) {
+          raf = requestAnimationFrame(animate);
+        } else {
+          card.style.transform = '';
+          card.dataset.sc = '1';
+        }
+      }
+
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const dx = (e.clientX - (rect.left + rect.width  / 2)) / (rect.width  / 2);
+        const dy = (e.clientY - (rect.top  + rect.height / 2)) / (rect.height / 2);
+        targetRY =  dx * 14;
+        targetRX = -dy * 10;
+      });
+
+      card.addEventListener('mouseenter', () => {
+        hovering = true;
+        cancelAnimationFrame(raf);
+        animate();
+      });
+
+      card.addEventListener('mouseleave', () => {
+        hovering = false;
+        targetRX = 0;
+        targetRY = 0;
+        animate();
+      });
+    });
+  </script>
 </body>
 </html>
