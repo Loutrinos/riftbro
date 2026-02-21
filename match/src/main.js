@@ -48,6 +48,7 @@ const state = {
     p2name: '',
     p2legend: '',
     target: 8,
+    firstPlayer: null, // null | 0 | 1
   },
 
   // Match state
@@ -127,7 +128,7 @@ function startMatch() {
       { name: s.p2name.trim() || 'Player 2', legendName: p2 ? p2.name : '—', champion: p2 ? p2.champion : '', imageUrl: p2 ? `https://static.dotgg.gg/riftbound/cards/${p2.imageId}.webp` : '', points: 0 },
     ],
     target: s.target,
-    activeTurn: 1,
+    activeTurn: s.firstPlayer ?? 0,
     winner: null,
     timerSeconds: 3600,
     timerRunning: false,
@@ -145,7 +146,7 @@ function resetToSetup() {
 const Setup = {
   view() {
     const s = state.setup;
-    const canStart = s.p1legend && s.p2legend;
+    const canStart = s.p1legend && s.p2legend && s.firstPlayer !== null;
 
     const legendDropdown = (value, onchange) =>
       m('select.setup-select', { value, onchange },
@@ -206,6 +207,28 @@ const Setup = {
               onclick: () => s.target = 9,
             }, '9 pts'),
           ]),
+        ]),
+
+        // First player
+        m('.setup-section', [
+          m('h3', 'Who goes first?'),
+          m('.first-player-options', [
+            m('button.first-player-btn', {
+              class: s.firstPlayer === 0 ? 'first-player-btn active' : 'first-player-btn',
+              onclick: () => { s.firstPlayer = 0; },
+            }, s.p1name.trim() || 'Player 1'),
+            m('button.first-player-randomize', {
+              title: 'Pick randomly',
+              onclick: () => { s.firstPlayer = Math.random() < 0.5 ? 0 : 1; },
+            }, '🎲'),
+            m('button.first-player-btn', {
+              class: s.firstPlayer === 1 ? 'first-player-btn active' : 'first-player-btn',
+              onclick: () => { s.firstPlayer = 1; },
+            }, s.p2name.trim() || 'Player 2'),
+          ]),
+          s.firstPlayer !== null && m('.first-player-result',
+            `${s.firstPlayer === 0 ? (s.p1name.trim() || 'Player 1') : (s.p2name.trim() || 'Player 2')} goes first`
+          ),
         ]),
 
         // Start
