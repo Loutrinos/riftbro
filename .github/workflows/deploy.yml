@@ -16,11 +16,21 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install dependencies
+      - name: Install root dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build root app
         run: npm run build
+
+      - name: Install give/ dependencies
+        run: npm ci
+        working-directory: give
+
+      - name: Build give/ app
+        run: npm run build
+        working-directory: give
+        env:
+          VITE_BASE: /riftbro/give/
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
