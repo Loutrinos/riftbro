@@ -54,7 +54,7 @@ header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
+  gap: 1rem;
   animation: headerEnter 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -64,7 +64,7 @@ header {
 }
 
 .logo {
-  height: 90px;
+  height: 180px;
   width: auto;
   animation: logoPulse 4s ease-in-out infinite;
 }
