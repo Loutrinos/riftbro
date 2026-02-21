@@ -3,36 +3,36 @@ import m from 'mithril';
 // ── Legends ───────────────────────────────────────────────────────────────────
 const LEGENDS = [
   // Origins
-  { id: 'ogn-247', name: 'Daughter of the Void',    champion: "Kai'Sa",       set: 'Origins' },
-  { id: 'ogn-249', name: 'Relentless Storm',          champion: 'Volibear',     set: 'Origins' },
-  { id: 'ogn-251', name: 'Loose Cannon',              champion: 'Jinx',         set: 'Origins' },
-  { id: 'ogn-253', name: 'Hand of Noxus',             champion: 'Darius',       set: 'Origins' },
-  { id: 'ogn-255', name: 'Nine-Tailed Fox',           champion: 'Ahri',         set: 'Origins' },
-  { id: 'ogn-257', name: 'Blind Monk',                champion: 'Lee Sin',      set: 'Origins' },
-  { id: 'ogn-259', name: 'Unforgiven',                champion: 'Yasuo',        set: 'Origins' },
-  { id: 'ogn-261', name: 'Radiant Dawn',              champion: 'Leona',        set: 'Origins' },
-  { id: 'ogn-263', name: 'Swift Scout',               champion: 'Teemo',        set: 'Origins' },
-  { id: 'ogn-265', name: 'Herald of the Arcane',      champion: 'Viktor',       set: 'Origins' },
-  { id: 'ogn-267', name: 'Bounty Hunter',             champion: 'Miss Fortune', set: 'Origins' },
-  { id: 'ogn-269', name: 'The Boss',                  champion: 'Sett',         set: 'Origins' },
+  { id: 'ogn-247', imageId: 'OGN-247', name: 'Daughter of the Void',    champion: "Kai'Sa",       set: 'Origins' },
+  { id: 'ogn-249', imageId: 'OGN-249', name: 'Relentless Storm',          champion: 'Volibear',     set: 'Origins' },
+  { id: 'ogn-251', imageId: 'OGN-251', name: 'Loose Cannon',              champion: 'Jinx',         set: 'Origins' },
+  { id: 'ogn-253', imageId: 'OGN-253', name: 'Hand of Noxus',             champion: 'Darius',       set: 'Origins' },
+  { id: 'ogn-255', imageId: 'OGN-255', name: 'Nine-Tailed Fox',           champion: 'Ahri',         set: 'Origins' },
+  { id: 'ogn-257', imageId: 'OGN-257', name: 'Blind Monk',                champion: 'Lee Sin',      set: 'Origins' },
+  { id: 'ogn-259', imageId: 'OGN-259', name: 'Unforgiven',                champion: 'Yasuo',        set: 'Origins' },
+  { id: 'ogn-261', imageId: 'OGN-261', name: 'Radiant Dawn',              champion: 'Leona',        set: 'Origins' },
+  { id: 'ogn-263', imageId: 'OGN-263', name: 'Swift Scout',               champion: 'Teemo',        set: 'Origins' },
+  { id: 'ogn-265', imageId: 'OGN-265', name: 'Herald of the Arcane',      champion: 'Viktor',       set: 'Origins' },
+  { id: 'ogn-267', imageId: 'OGN-267', name: 'Bounty Hunter',             champion: 'Miss Fortune', set: 'Origins' },
+  { id: 'ogn-269', imageId: 'OGN-269', name: 'The Boss',                  champion: 'Sett',         set: 'Origins' },
   // Proving Grounds Starters
-  { id: 'ogs-017', name: 'Dark Child',                champion: 'Annie',        set: 'Proving Grounds' },
-  { id: 'ogs-019', name: 'Wuju Bladesman',            champion: 'Master Yi',    set: 'Proving Grounds' },
-  { id: 'ogs-021', name: 'Lady of Luminosity',        champion: 'Lux',          set: 'Proving Grounds' },
-  { id: 'ogs-023', name: 'Might of Demacia',          champion: 'Garen',        set: 'Proving Grounds' },
+  { id: 'ogs-017', imageId: 'OGS-017', name: 'Dark Child',                champion: 'Annie',        set: 'Proving Grounds' },
+  { id: 'ogs-019', imageId: 'OGS-019', name: 'Wuju Bladesman',            champion: 'Master Yi',    set: 'Proving Grounds' },
+  { id: 'ogs-021', imageId: 'OGS-021', name: 'Lady of Luminosity',        champion: 'Lux',          set: 'Proving Grounds' },
+  { id: 'ogs-023', imageId: 'OGS-023', name: 'Might of Demacia',          champion: 'Garen',        set: 'Proving Grounds' },
   // Spiritforged
-  { id: 'sfd-181', name: 'Mechanized Menace',         champion: 'Rumble',       set: 'Spiritforged' },
-  { id: 'sfd-183', name: 'Purifier',                  champion: 'Lucian',       set: 'Spiritforged' },
-  { id: 'sfd-185', name: 'Glorious Executioner',      champion: 'Draven',       set: 'Spiritforged' },
-  { id: 'sfd-187', name: 'Void Burrower',             champion: "Rek'Sai",      set: 'Spiritforged' },
-  { id: 'sfd-189', name: 'Fire Below the Mountain',   champion: 'Ornn',         set: 'Spiritforged' },
-  { id: 'sfd-193', name: 'Grandmaster at Arms',       champion: 'Jax',          set: 'Spiritforged' },
-  { id: 'sfd-195', name: 'Blade Dancer',              champion: 'Irelia',       set: 'Spiritforged' },
-  { id: 'sfd-197', name: 'Emperor of the Sands',      champion: 'Azir',         set: 'Spiritforged' },
-  { id: 'sfd-199', name: 'Prodigal Explorer',         champion: 'Ezreal',       set: 'Spiritforged' },
-  { id: 'sfd-201', name: 'Chem-Baroness',             champion: 'Renata Glasc', set: 'Spiritforged' },
-  { id: 'sfd-203', name: 'Battle Mistress',           champion: 'Sivir',        set: 'Spiritforged' },
-  { id: 'sfd-205', name: 'Grand Duelist',             champion: 'Fiora',        set: 'Spiritforged' },
+  { id: 'sfd-181', imageId: 'SFD-181', name: 'Mechanized Menace',         champion: 'Rumble',       set: 'Spiritforged' },
+  { id: 'sfd-183', imageId: 'SFD-183', name: 'Purifier',                  champion: 'Lucian',       set: 'Spiritforged' },
+  { id: 'sfd-185', imageId: 'SFD-185', name: 'Glorious Executioner',      champion: 'Draven',       set: 'Spiritforged' },
+  { id: 'sfd-187', imageId: 'SFD-187', name: 'Void Burrower',             champion: "Rek'Sai",      set: 'Spiritforged' },
+  { id: 'sfd-189', imageId: 'SFD-189', name: 'Fire Below the Mountain',   champion: 'Ornn',         set: 'Spiritforged' },
+  { id: 'sfd-193', imageId: 'SFD-193', name: 'Grandmaster at Arms',       champion: 'Jax',          set: 'Spiritforged' },
+  { id: 'sfd-195', imageId: 'SFD-195', name: 'Blade Dancer',              champion: 'Irelia',       set: 'Spiritforged' },
+  { id: 'sfd-197', imageId: 'SFD-197', name: 'Emperor of the Sands',      champion: 'Azir',         set: 'Spiritforged' },
+  { id: 'sfd-199', imageId: 'SFD-199', name: 'Prodigal Explorer',         champion: 'Ezreal',       set: 'Spiritforged' },
+  { id: 'sfd-201', imageId: 'SFD-201', name: 'Chem-Baroness',             champion: 'Renata Glasc', set: 'Spiritforged' },
+  { id: 'sfd-203', imageId: 'SFD-203', name: 'Battle Mistress',           champion: 'Sivir',        set: 'Spiritforged' },
+  { id: 'sfd-205', imageId: 'SFD-205', name: 'Grand Duelist',             champion: 'Fiora',        set: 'Spiritforged' },
 ];
 
 const SETS = [...new Set(LEGENDS.map(l => l.set))];
@@ -123,8 +123,8 @@ function startMatch() {
 
   state.match = {
     players: [
-      { name: s.p1name.trim() || 'Player 1', legendName: p1 ? p1.name : '—', champion: p1 ? p1.champion : '', points: 0 },
-      { name: s.p2name.trim() || 'Player 2', legendName: p2 ? p2.name : '—', champion: p2 ? p2.champion : '', points: 0 },
+      { name: s.p1name.trim() || 'Player 1', legendName: p1 ? p1.name : '—', champion: p1 ? p1.champion : '', imageUrl: p1 ? `https://static.dotgg.gg/riftbound/cards/${p1.imageId}.webp` : '', points: 0 },
+      { name: s.p2name.trim() || 'Player 2', legendName: p2 ? p2.name : '—', champion: p2 ? p2.champion : '', imageUrl: p2 ? `https://static.dotgg.gg/riftbound/cards/${p2.imageId}.webp` : '', points: 0 },
     ],
     target: s.target,
     activeTurn: 1,
@@ -153,7 +153,7 @@ const Setup = {
         SETS.map(set =>
           m('optgroup', { label: set },
             LEGENDS.filter(l => l.set === set).map(l =>
-              m('option', { value: l.id }, `${l.name} (${l.champion})`)
+              m('option', { value: l.id }, `${l.champion} – ${l.name}`)
             )
           )
         )
@@ -229,7 +229,11 @@ const PlayerHalf = {
     const isWinner = match.winner === playerIdx;
     const atTarget = p.points >= match.target;
 
-    return m(`.player-half.${position}`, { class: isActive ? 'active-turn' : '' }, [
+    const bgStyle = p.imageUrl
+      ? `background-image: linear-gradient(rgba(7,7,15,0.62), rgba(7,7,15,0.72)), url('${p.imageUrl}'); background-size: cover; background-position: center 15%;`
+      : '';
+
+    return m(`.player-half.${position}`, { class: isActive ? 'active-turn' : '', style: bgStyle }, [
       m('.turn-pip'),
 
       m('.player-name', p.name),
