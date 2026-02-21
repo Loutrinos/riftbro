@@ -190,6 +190,22 @@ header.header {
     background-color: #2e7d32;
 }
 
+.filters label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.filters input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-color);
+}
+
 .collection {
     display: flex;
     justify-content: space-around;
@@ -215,6 +231,13 @@ header.header {
     border-radius: 4px;
     display: flex;
     align-items: center;
+}
+
+.master {
+    background: #2196F3;
+    color: #fff;
+    padding: 2px 4px;
+    border-radius: 4px;
 }
 
 .trade-btn {
@@ -380,4 +403,58 @@ hover-tilt, hover-tilt::part(container) {
   color: #ff6b6b;
   text-align: center;
   margin: 0;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  color: var(--border-color);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--border-color);
+}
+
+.trade-matcher-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 20px;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-color);
+  transition: border-color 0.2s, background-color 0.2s;
+  cursor: pointer;
+}
+
+.trade-matcher-link:hover {
+  border-color: var(--accent-color);
+  background-color: rgba(30, 97, 32, 0.1);
+}
+
+.trade-matcher-icon {
+  font-size: 1.4rem;
+  color: var(--badge-color);
+}
+
+.trade-matcher-link span:not(.trade-matcher-icon) {
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+.trade-matcher-link small {
+  font-size: 0.75rem;
+  opacity: 0.55;
 }

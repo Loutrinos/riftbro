@@ -72,6 +72,33 @@ async function importCollection() {
 
     console.log('Matched cards:', matchedCount);
 
+    // Recalculate trade values based on card types and quantities
+    Object.keys(state.userCards).forEach(cardId => {
+      const cardData = state.cards.find(card => card.id === cardId);
+      if (cardData) {
+        const userCard = state.userCards[cardId];
+        const total = (userCard.normal || 0) + (userCard.foil || 0);
+        
+        // Check card types (case insensitive)
+        const cardTypes = cardData.cardType?.type || [];
+        const typeLabels = cardTypes.map(ct => ct.label?.toLowerCase()).filter(Boolean);
+        
+        let maxKeep = 3; // Default
+        let canTrade = true;
+        
+        if (typeLabels.some(label => label.includes('rune'))) {
+          canTrade = false;
+        } else if (typeLabels.some(label => label.includes('battlefield'))) {
+          maxKeep = 2;
+        } else if (typeLabels.some(label => label.includes('legend'))) {
+          maxKeep = 1;
+        }
+        
+        // Calculate trade
+        userCard.trade = canTrade ? Math.max(0, total - maxKeep) : 0;
+      }
+    });
+
     // Save to Firebase
     const batch = [];
     Object.entries(state.userCards).forEach(([cardId, data]) => {
@@ -122,6 +149,7 @@ let state = {
     cardType: '',
     tag: '',
     tradeOnly: false,
+    masterOnly: false,
     tradeUser: null
   },
   filterOptions: {
@@ -142,6 +170,7 @@ state.filters.cardType = urlParams.get('cardType') || '';
 state.filters.tag = urlParams.get('tag') || '';
 state.filters.tradeUser = urlParams.get('tradeUser');
 state.filters.tradeOnly = urlParams.get('tradeOnly') === 'true';
+state.filters.masterOnly = urlParams.get('masterOnly') === 'true';
 
 // Update URL
 function updateURL() {
@@ -153,6 +182,7 @@ function updateURL() {
   if (state.filters.tag) params.set('tag', state.filters.tag);
   if (state.filters.tradeUser) params.set('tradeUser', state.filters.tradeUser);
   if (state.filters.tradeOnly) params.set('tradeOnly', 'true');
+  if (state.filters.masterOnly) params.set('masterOnly', 'true');
   const newURL = `${window.location.pathname}?${params.toString()}`;
   window.history.replaceState(null, '', newURL);
 }
@@ -183,6 +213,28 @@ const CardList = {
       if (state.filters.tradeOnly) {
         return matchesFilters && state.user && (state.userCards[card.id]?.trade > 0);
       }
+      if (state.filters.masterOnly) {
+        if (!state.user) return false;
+        const userCard = state.userCards[card.id] || { normal: 0, foil: 0 };
+        const total = userCard.normal + userCard.foil;
+        
+        // Check card types (case insensitive)
+        const cardTypes = card.cardType?.type || [];
+        const typeLabels = cardTypes.map(ct => ct.label?.toLowerCase()).filter(Boolean);
+        
+        let maxAllowed = 3; // Default
+        
+        if (typeLabels.some(label => label.includes('rune'))) {
+          maxAllowed = 1;
+        } else if (typeLabels.some(label => label.includes('battlefield'))) {
+          maxAllowed = 2;
+        } else if (typeLabels.some(label => label.includes('legend'))) {
+          maxAllowed = 1;
+        }
+        
+        const masterValue = Math.max(0, maxAllowed - total);
+        return matchesFilters && masterValue > 0;
+      }
       return matchesFilters;
     });
     return m('div', { onclick: () => state.menuOpen = false }, [
@@ -201,30 +253,52 @@ const CardList = {
       ]),
       m('div.card-list', [
         m('div.filters', [
-          m('select', { onchange: e => { state.filters.set = e.target.value; updateURL(); m.redraw(); } }, [
+          m('select', { onchange: e => { e.stopPropagation(); state.filters.set = e.target.value; updateURL(); m.redraw(); } }, [
             m('option', { value: '' }, 'All Sets'),
             ...state.filterOptions.sets.map(s => m('option', { value: s.id }, `${s.label} (${s.count})`))
           ]),
-          m('select', { onchange: e => { state.filters.domain = e.target.value; updateURL(); m.redraw(); } }, [
+          m('select', { onchange: e => { e.stopPropagation(); state.filters.domain = e.target.value; updateURL(); m.redraw(); } }, [
             m('option', { value: '' }, 'All Domains'),
             ...state.filterOptions.domains.map(d => m('option', { value: d.id }, `${d.label} (${d.count})`))
           ]),
-          m('select', { onchange: e => { state.filters.rarity = e.target.value; updateURL(); m.redraw(); } }, [
+          m('select', { onchange: e => { e.stopPropagation(); state.filters.rarity = e.target.value; updateURL(); m.redraw(); } }, [
             m('option', { value: '' }, 'All Rarities'),
             ...state.filterOptions.rarities.map(r => m('option', { value: r.id }, `${r.label} (${r.count})`))
           ]),
-          m('select', { onchange: e => { state.filters.cardType = e.target.value; updateURL(); m.redraw(); } }, [
+          m('select', { onchange: e => { e.stopPropagation(); state.filters.cardType = e.target.value; updateURL(); m.redraw(); } }, [
             m('option', { value: '' }, 'All Card Types'),
             ...state.filterOptions.cardTypes.map(ct => m('option', { value: ct.id }, `${ct.label} (${ct.count})`))
           ]),
-          m('select', { onchange: e => { state.filters.tag = e.target.value; updateURL(); m.redraw(); } }, [
+          m('select', { onchange: e => { e.stopPropagation(); state.filters.tag = e.target.value; updateURL(); m.redraw(); } }, [
             m('option', { value: '' }, 'All Tags'),
             ...state.filterOptions.tags.map(t => m('option', { value: t.tag }, `${t.tag} (${t.count})`))
           ]),
-          m('button.clear-filters', { onclick: () => { Object.keys(state.filters).forEach(k => { if (k !== 'tradeUser') state.filters[k] = k === 'tradeOnly' ? false : ''; }); updateURL(); m.redraw(); } }, 'Clear Filters'),
-          m('label', [
-            m('input[type=checkbox]', { checked: state.filters.tradeOnly, onchange: e => { state.filters.tradeOnly = e.target.checked; updateURL(); m.redraw(); } }),
+          m('button.clear-filters', { onclick: e => { e.stopPropagation(); Object.keys(state.filters).forEach(k => { if (k !== 'tradeUser') state.filters[k] = (k === 'tradeOnly' || k === 'masterOnly') ? false : ''; }); updateURL(); m.redraw(); } }, 'Clear Filters'),
+          m('label', { for: 'tradeOnly' }, [
+            m('input[type=checkbox][id=tradeOnly]', { 
+              checked: state.filters.tradeOnly, 
+              onclick: e => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                state.filters.tradeOnly = !state.filters.tradeOnly; 
+                updateURL(); 
+                m.redraw(); 
+              } 
+            }),
             ' Show only tradeable cards'
+          ]),
+          m('label', { for: 'masterOnly' }, [
+            m('input[type=checkbox][id=masterOnly]', { 
+              checked: state.filters.masterOnly, 
+              onclick: e => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                state.filters.masterOnly = !state.filters.masterOnly; 
+                updateURL(); 
+                m.redraw(); 
+              } 
+            }),
+            ' Show only master cards'
           ]),
           m('p.filter-count', `Showing ${filteredCards.length} of ${state.cards.length} cards`)
         ]),
@@ -250,12 +324,28 @@ const CardList = {
             state.user ? m('div.collection', [
               m('div.normal', `Normal: ${state.userCards[card.id]?.normal || 0}`),
               m('div.foil', `Foil: ${state.userCards[card.id]?.foil || 0}`),
-              m('div.trade', [
-                'Trade: ',
-                m('button.trade-btn', { onclick: () => updateTrade(card.id, -1) }, '-'),
-                state.userCards[card.id]?.trade || 0,
-                m('button.trade-btn', { onclick: () => updateTrade(card.id, 1) }, '+')
-              ])
+              m('div.trade', `Trade: ${state.userCards[card.id]?.trade || 0}`),
+              (() => {
+                const userCard = state.userCards[card.id] || { normal: 0, foil: 0 };
+                const total = userCard.normal + userCard.foil;
+                
+                // Check card types (case insensitive)
+                const cardTypes = card.cardType?.type || [];
+                const typeLabels = cardTypes.map(ct => ct.label?.toLowerCase()).filter(Boolean);
+                
+                let maxAllowed = 3; // Default
+                
+                if (typeLabels.some(label => label.includes('rune'))) {
+                  maxAllowed = 1;
+                } else if (typeLabels.some(label => label.includes('battlefield'))) {
+                  maxAllowed = 2;
+                } else if (typeLabels.some(label => label.includes('legend'))) {
+                  maxAllowed = 1;
+                }
+                
+                const masterValue = Math.max(0, maxAllowed - total);
+                return m('div.master', `Master: ${masterValue}`);
+              })()
             ]) : null
           ])
         ))
@@ -286,6 +376,12 @@ const Login = {
         m('button[type=submit]', state.authMode === 'signin' ? 'Sign In' : 'Sign Up'),
         m('button[type=button]', { onclick: () => state.authMode = state.authMode === 'signin' ? 'signup' : 'signin' }, state.authMode === 'signin' ? 'Need to sign up?' : 'Already have account?'),
         state.error ? m('p.error', state.error) : null
+      ]),
+      m('div.login-divider', m('span', 'or')),
+      m('a.trade-matcher-link', { href: 'give/' }, [
+        m('span.trade-matcher-icon', '⇄'),
+        m('span', 'Trade Matcher'),
+        m('small', 'Compare wishlists & trade lists — no login required'),
       ])
     ])
   ])
@@ -419,6 +515,42 @@ async function loadUserCards(uid) {
     querySnapshot.docs.forEach(doc => {
       state.userCards[doc.id] = doc.data();
     });
+
+    // Recalculate trade values based on card types and quantities
+    Object.keys(state.userCards).forEach(cardId => {
+      const cardData = state.cards.find(card => card.id === cardId);
+      if (cardData) {
+        const userCard = state.userCards[cardId];
+        const total = (userCard.normal || 0) + (userCard.foil || 0);
+        
+        // Check card types (case insensitive)
+        const cardTypes = cardData.cardType?.type || [];
+        const typeLabels = cardTypes.map(ct => ct.label?.toLowerCase()).filter(Boolean);
+        
+        let maxKeep = 3; // Default
+        let canTrade = true;
+        
+        if (typeLabels.some(label => label.includes('rune'))) {
+          canTrade = false;
+        } else if (typeLabels.some(label => label.includes('battlefield'))) {
+          maxKeep = 2;
+        } else if (typeLabels.some(label => label.includes('legend'))) {
+          maxKeep = 1;
+        }
+        
+        // Calculate trade
+        const newTrade = canTrade ? Math.max(0, total - maxKeep) : 0;
+        
+        // Update if different
+        if (userCard.trade !== newTrade) {
+          userCard.trade = newTrade;
+          // Save back to Firebase
+          setDoc(doc(db, 'users', uid, 'cards', cardId), userCard, { merge: true }).catch(err => 
+            console.error('Error updating trade for card:', cardId, err)
+          );
+        }
+      }
+    });
     
     // Cache the latest data
     localStorage.setItem(`userCards_${uid}`, JSON.stringify(state.userCards));
@@ -475,22 +607,6 @@ async function clearCollection() {
     console.error('Error clearing collection:', error);
     alert('Error clearing collection. Check console for details.');
   }
-}
-
-// Update trade count
-async function updateTrade(cardId, delta) {
-  if (!state.user) return;
-  const current = state.userCards[cardId]?.trade || 0;
-  const newTrade = Math.max(0, current + delta);
-  state.userCards[cardId] = { ...state.userCards[cardId], trade: newTrade };
-  try {
-    await setDoc(doc(db, 'users', state.user.uid, 'cards', cardId), state.userCards[cardId], { merge: true });
-    // Update localStorage cache
-    localStorage.setItem(`userCards_${state.user.uid}`, JSON.stringify(state.userCards));
-  } catch (error) {
-    console.error('Error updating trade:', error);
-  }
-  m.redraw();
 }
 
 // Auth state listener
