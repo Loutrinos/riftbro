@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Card collection app with Mithril and Firebase",
   "main": "main.js",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
