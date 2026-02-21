@@ -243,6 +243,7 @@ const CardList = {
     return m('div', { onclick: () => state.menuOpen = false }, [
       m('header.header', [
         m('img.logo', { src: import.meta.env.BASE_URL + 'logo.png', alt: 'Riftbro Logo' }),
+        m('a.header-nav-link', { href: '../', title: 'Home' }, '← Home'),
         m('a.header-nav-link', { href: tradeMatcherUrl, title: 'Trade Matcher' }, '⇄ Trade Matcher'),
         m('button.hamburger', { onclick: e => { e.stopPropagation(); state.menuOpen = !state.menuOpen; } }, '☰'),
         state.menuOpen ? m('div.menu', { onclick: e => e.stopPropagation() }, [
@@ -382,10 +383,10 @@ const Login = {
         state.error ? m('p.error', state.error) : null
       ]),
       m('div.login-divider', m('span', 'or')),
-      m('a.trade-matcher-link', { href: tradeMatcherUrl }, [
-        m('span.trade-matcher-icon', '⇄'),
-        m('span', 'Trade Matcher'),
-        m('small', 'Compare wishlists & trade lists — no login required'),
+      m('a.trade-matcher-link', { href: '../' }, [
+        m('span.trade-matcher-icon', '⌂'),
+        m('span', 'Home'),
+        m('small', 'Go back to the app hub'),
       ])
     ])
   ])

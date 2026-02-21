@@ -2,9 +2,6 @@ import m from 'mithril';
 import { fetchUserList } from './parser.js';
 import { compare } from './compare.js';
 
-// Resolve the main app URL — works for both local dev and GitHub Pages
-const mainAppUrl = '../app/';
-
 // ── URL state sync ────────────────────────────────────────────────────────────
 function getParams() {
   const p = new URLSearchParams(window.location.search);
@@ -63,7 +60,7 @@ const Header = {
   view() {
     return m('.header', [
       m('img.logo', { src: `${import.meta.env.BASE_URL}logo.png`, alt: 'Riftbound Logo' }),
-      m('a.header-nav-link', { href: '../' }, '← Main App'),
+      m('a.header-nav-link', { href: '../' }, '← Home'),
       m('.header-title', 'Trade Matcher'),
     ]);
   },
