@@ -1,13 +1,16 @@
 :root {
-    --text-color: #f2f2f2;
-    --bg-color: #252525;
-    --accent-color: #1e6120;
-    --border-color: #525252;
-    --font-family: Arial, sans-serif;
-    --header-bg: #2b2b2b;
-    --header-box-shadow-color: rgba(0, 0, 0, 0.3);
-    --card-border-radius: 16px;
-    --badge-color: rgb(43, 189, 43);
+    --text-color:              #e8e0cc;
+    --bg-color:                #07070f;
+    --accent-color:            #c8a951;
+    --accent2:                 #f0d070;
+    --border-color:            #252538;
+    --font-family:             'Inter', 'Segoe UI', sans-serif;
+    --header-bg:               #111120;
+    --surface2:                #1a1a30;
+    --header-box-shadow-color: rgba(0, 0, 0, 0.5);
+    --card-border-radius:      14px;
+    --badge-color:             #c8a951;
+    --text-muted:              #7070a0;
 }
 
 html, body, * {
@@ -17,6 +20,8 @@ html, body, * {
 body {
     margin: 0;
     background-color: var(--bg-color);
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(200,169,81,0.06) 0%, transparent 60%);
+    background-attachment: fixed;
     color: var(--text-color);
     font-family: var(--font-family);
 }
@@ -41,9 +46,11 @@ body {
 
 .header-title {
     font-size: 1.1rem;
-    font-weight: bold;
-    color: var(--text-color);
-    opacity: 0.85;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    color: var(--accent-color);
+    opacity: 1;
+    letter-spacing: 0.06em;
 }
 
 .header-nav-link {
@@ -59,7 +66,7 @@ body {
 
 .header-nav-link:hover {
     border-color: var(--accent-color);
-    background-color: rgba(30, 97, 32, 0.15);
+    background-color: rgba(200, 169, 81, 0.1);
 }
 
 /* ── Main content ── */
@@ -80,11 +87,12 @@ body {
 
 .form-section h2 {
     margin: 0 0 20px;
-    font-size: 1rem;
-    color: var(--text-color);
-    opacity: 0.7;
+    font-size: 0.8rem;
+    font-family: 'Cinzel', serif;
+    color: var(--accent-color);
+    opacity: 1;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.1em;
 }
 
 .user-inputs {
@@ -139,25 +147,29 @@ body {
 
 .swap-btn:hover {
     border-color: var(--accent-color);
-    background-color: rgba(30, 97, 32, 0.15);
+    background-color: rgba(200, 169, 81, 0.08);
 }
 
 .find-btn {
     padding: 10px 24px;
-    background-color: var(--accent-color);
-    color: var(--text-color);
+    background: linear-gradient(135deg, #a07828, #c8a951);
+    color: #07070f;
     border: none;
     border-radius: 8px;
     font-size: 0.95rem;
     font-weight: bold;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.05em;
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s, transform 0.1s;
     align-self: flex-end;
     white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(200,169,81,0.2);
 }
 
 .find-btn:hover {
-    opacity: 0.85;
+    opacity: 0.9;
+    transform: translateY(-1px);
 }
 
 .find-btn:disabled {
@@ -198,11 +210,12 @@ body {
 }
 
 .results-section h2 {
+    font-family: 'Cinzel', serif;
     font-size: 1rem;
     margin: 0 0 16px;
     padding: 0 0 10px;
     border-bottom: 1px solid var(--border-color);
-    color: var(--badge-color);
+    color: var(--accent-color);
     display: flex;
     align-items: center;
     gap: 8px;
