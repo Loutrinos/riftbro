@@ -1,642 +1,545 @@
-// main.js
+﻿// main.js â€” Collection Dashboard (no auth required)
 import m from 'https://esm.sh/mithril@2.2.2';
-import { auth, db } from './firebase.js';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-import { collection, getDocs, doc, getDoc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+import { db } from './firebase.js';
+import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
-// Utility functions
-function extractSheetId(url) {
-  const trimmed = url.trim();
-  const match = trimmed.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  return match ? match[1] : trimmed;
+// -- Constants --
+const DOTGG_API = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
+const PROXY     = 'https://corsproxy.io/?url=';
+const CARD_TTL  = 24 * 60 * 60 * 1000; // 24 h
+const USER_TTL  = 30 * 60 * 1000;       // 30 min
+
+const SETS = [
+  { id: 'ogn', label: 'Origins',         code: 'OGN' },
+  { id: 'sfd', label: 'Spiritforged',    code: 'SFD' },
+  { id: 'ogs', label: 'Proving Grounds', code: 'OGS' },
+];
+
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic'];
+const RARITY_COLOR = {
+  common:       '#9ca3af',
+  uncommon:     '#34d399',
+  rare:         '#60a5fa',
+  epic:         '#c084fc',
+  overnumbered: '#f59e0b',
+};
+
+// -- Card helpers --
+const isOvernumbered = c => c.rarity?.value?.id === 'overnumbered';
+const isType = (c, t) => (c.cardType?.type || []).some(ct =>
+  ct.id?.toLowerCase() === t || ct.label?.toLowerCase() === t);
+const isRune        = c => isType(c, 'rune');
+const isLegend      = c => isType(c, 'legend');
+const isBattlefield = c => isType(c, 'battlefield');
+
+function masterTarget(card) {
+  if (isOvernumbered(card)) return null;
+  if (isRune(card))         return null;
+  if (isLegend(card))       return 1;
+  if (isBattlefield(card))  return 1;
+  return 3;
 }
 
-function getSheetUrl(id) {
-  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=Sheet1&tq=${encodeURI("Select *")}`;
+// -- State --
+const state = {
+  phase:         'setup',   // 'setup' | 'loading' | 'main'
+  username:      localStorage.getItem('rb_username') || '',
+  cards:         [],
+  userCards:     {},        // { cardId: { normal, foil, trade, wish } }
+  selectedSet:   'all',
+  selectedCard:  null,
+  loadError:     null,
+  userError:     null,
+  filtersOpen:   false,
+  filterRarity:  '',
+  filterDomain:  '',
+  filterType:    '',
+  filterMissing: false,
+  filterTrade:   false,
+  filterWish:    false,
+  chipRarity:    '',
+  chipType:      '',
+  chipDomain:    '',
+};
+
+if (state.username) state.phase = 'loading';
+
+// -- Data helpers --
+function ownedTotal(id) {
+  const u = state.userCards[id];
+  return u ? (u.normal || 0) + (u.foil || 0) : 0;
+}
+function isOwned(id) { return ownedTotal(id) > 0; }
+
+function resetChips() {
+  state.chipRarity = '';
+  state.chipType   = '';
+  state.chipDomain = '';
 }
 
-// Import collection from Google Sheets
-async function importCollection() {
-  if (!state.user) return;
-  const urls = [state.sheetUrl1, state.sheetUrl2].filter(u => u.trim());
-  if (urls.length === 0) return alert('Please enter at least one Google Sheets URL');
-
-  console.log('Importing with URLs:', urls);
-  console.log('state.sheetUrl1:', state.sheetUrl1, 'state.sheetUrl2:', state.sheetUrl2);
-
-  const ids = urls.map(extractSheetId);
-  const promises = ids.map(async id => {
-    const url = getSheetUrl(id);
-    const response = await fetch(url);
-    const text = await response.text();
-    const json = JSON.parse(text.substring(47).slice(0, -2));
-    return json.table.rows.map(row => ({
-      id: row.c[0]?.v,
-      normal: parseInt(row.c[1]?.v) || 0,
-      foil: parseInt(row.c[2]?.v) || 0,
-      trade: parseInt(row.c[3]?.v) || 0
-    }));
-  });
-
-  try {
-    const sheetsData = await Promise.all(promises);
-    const allData = sheetsData.flat();
-
-    console.log('All imported data:', allData);
-
-    // Create a map by short id (e.g., OGN-001)
-    const dataMap = {};
-    allData.forEach(item => {
-      if (item.id) {
-        const shortId = item.id.toUpperCase().split('-').slice(0, 2).join('-');
-        dataMap[shortId] = item;
-      }
-    });
-
-    console.log('Data map keys:', Object.keys(dataMap));
-
-    // Match with cards
-    let matchedCount = 0;
-    state.cards.forEach(card => {
-      const shortId = card.id.toUpperCase().split('-').slice(0, 2).join('-');
-      const match = dataMap[shortId];
-      if (match) {
-        matchedCount++;
-        state.userCards[card.id] = {
-          normal: match.normal,
-          foil: match.foil,
-          trade: match.trade
-        };
-      }
-    });
-
-    console.log('Matched cards:', matchedCount);
-
-    // Recalculate trade values based on card types and quantities
-    Object.keys(state.userCards).forEach(cardId => {
-      const cardData = state.cards.find(card => card.id === cardId);
-      if (cardData) {
-        const userCard = state.userCards[cardId];
-        const total = (userCard.normal || 0) + (userCard.foil || 0);
-        
-        // Check card types (case insensitive)
-        const cardTypes = cardData.cardType?.type || [];
-        const typeLabels = cardTypes.map(ct => ct.label?.toLowerCase()).filter(Boolean);
-        
-        let maxKeep = 3; // Default
-        let canTrade = true;
-        
-        if (typeLabels.some(label => label.includes('rune'))) {
-          canTrade = false;
-        } else if (typeLabels.some(label => label.includes('battlefield'))) {
-          maxKeep = 2;
-        } else if (typeLabels.some(label => label.includes('legend'))) {
-          maxKeep = 1;
-        }
-        
-        // Calculate trade
-        userCard.trade = canTrade ? Math.max(0, total - maxKeep) : 0;
-      }
-    });
-
-    // Save to Firebase
-    const batch = [];
-    Object.entries(state.userCards).forEach(([cardId, data]) => {
-      batch.push(setDoc(doc(db, 'users', state.user.uid, 'cards', cardId), data));
-    });
-    await Promise.all(batch);
-
-    // Save URLs
-    const urlsToSave = [state.sheetUrl1, state.sheetUrl2].filter(u => u);
-    localStorage.setItem('sheetUrls', JSON.stringify(urlsToSave));
-    await setDoc(doc(db, 'users', state.user.uid), { sheetUrls: urlsToSave }, { merge: true });
-    console.log('Saved sheetUrls to localStorage and Firebase:', urlsToSave);
-
-    // Update state
-    state.sheetUrl1 = urlsToSave[0] || '';
-    state.sheetUrl2 = urlsToSave[1] || '';
-    console.log('After import, state.sheetUrl1:', state.sheetUrl1, 'state.sheetUrl2:', state.sheetUrl2);
-
-    // Update localStorage cache
-    localStorage.setItem(`userCards_${state.user.uid}`, JSON.stringify(state.userCards));
-
-    alert('Collection imported successfully!');
-    m.redraw();
-  } catch (error) {
-    console.error('Error importing collection:', error);
-    alert('Error importing collection. Check console for details.');
-  }
+function clearFilters() {
+  state.filterRarity  = '';
+  state.filterDomain  = '';
+  state.filterType    = '';
+  state.filterMissing = false;
+  state.filterTrade   = false;
+  state.filterWish    = false;
+  resetChips();
 }
 
-// Resolve the Trade Matcher URL — works for both local dev and GitHub Pages
-const tradeMatcherUrl = '../give/';
-
-// App state
-let state = {
-  user: null,
-  cards: [],
-  userCards: {},
-  selectedCard: null,
-  loading: true,
-  authMode: 'signin', // 'signin' or 'signup'
-  email: '',
-  password: '',
-  error: '',
-  menuOpen: false,
-  sheetUrl1: '',
-  sheetUrl2: '',
-  filters: {
-    set: '',
-    domain: '',
-    rarity: '',
-    cardType: '',
-    tag: '',
-    tradeOnly: false,
-    masterOnly: false,
-    tradeUser: null
-  },
-  filterOptions: {
-    sets: [],
-    domains: [],
-    rarities: [],
-    cardTypes: [],
-    tags: []
-  }
-};
-
-// Parse URL params
-const urlParams = new URLSearchParams(window.location.search);
-state.filters.set = urlParams.get('set') || '';
-state.filters.domain = urlParams.get('domain') || '';
-state.filters.rarity = urlParams.get('rarity') || '';
-state.filters.cardType = urlParams.get('cardType') || '';
-state.filters.tag = urlParams.get('tag') || '';
-state.filters.tradeUser = urlParams.get('tradeUser');
-state.filters.tradeOnly = urlParams.get('tradeOnly') === 'true';
-state.filters.masterOnly = urlParams.get('masterOnly') === 'true';
-
-// Update URL
-function updateURL() {
-  const params = new URLSearchParams();
-  if (state.filters.set) params.set('set', state.filters.set);
-  if (state.filters.domain) params.set('domain', state.filters.domain);
-  if (state.filters.rarity) params.set('rarity', state.filters.rarity);
-  if (state.filters.cardType) params.set('cardType', state.filters.cardType);
-  if (state.filters.tag) params.set('tag', state.filters.tag);
-  if (state.filters.tradeUser) params.set('tradeUser', state.filters.tradeUser);
-  if (state.filters.tradeOnly) params.set('tradeOnly', 'true');
-  if (state.filters.masterOnly) params.set('masterOnly', 'true');
-  const newURL = `${window.location.pathname}?${params.toString()}`;
-  window.history.replaceState(null, '', newURL);
-}
-
-// Auth component
-const Auth = {
-  view: () => m('div.auth', [
-    m('h2', state.authMode === 'signin' ? 'Sign In' : 'Sign Up'),
-    m('input[type=email][placeholder=Email]', { value: state.email, oninput: e => state.email = e.target.value }),
-    m('input[type=password][placeholder=Password]', { value: state.password, oninput: e => state.password = e.target.value }),
-    m('button', { onclick: handleAuth }, state.authMode === 'signin' ? 'Sign In' : 'Sign Up'),
-    m('button', { onclick: () => state.authMode = state.authMode === 'signin' ? 'signup' : 'signin' }, state.authMode === 'signin' ? 'Need to sign up?' : 'Already have account?'),
-    state.error ? m('p.error', state.error) : null
-  ])
-};
-
-// Card list component
-const CardList = {
-  view: () => {
-    const filteredCards = state.cards.filter(card => {
-      const typeArray = card.cardType?.type || [];
-      const tagsArray = card.tags?.tags || [];
-      const matchesFilters = (!state.filters.set || card.set?.value?.id === state.filters.set) &&
-             (!state.filters.domain || card.domain?.values?.some(d => d.id === state.filters.domain)) &&
-             (!state.filters.rarity || card.rarity?.value?.id === state.filters.rarity) &&
-             (!state.filters.cardType || typeArray.some(ct => ct.id === state.filters.cardType)) &&
-             (!state.filters.tag || tagsArray.includes(state.filters.tag));
-      if (state.filters.tradeOnly) {
-        return matchesFilters && state.user && (state.userCards[card.id]?.trade > 0);
-      }
-      if (state.filters.masterOnly) {
-        if (!state.user) return false;
-        const userCard = state.userCards[card.id] || { normal: 0, foil: 0 };
-        const total = userCard.normal + userCard.foil;
-        
-        // Check card types (case insensitive)
-        const cardTypes = card.cardType?.type || [];
-        const typeLabels = cardTypes.map(ct => ct.label?.toLowerCase()).filter(Boolean);
-        
-        let maxAllowed = 3; // Default
-        
-        if (typeLabels.some(label => label.includes('rune'))) {
-          maxAllowed = 1;
-        } else if (typeLabels.some(label => label.includes('battlefield'))) {
-          maxAllowed = 2;
-        } else if (typeLabels.some(label => label.includes('legend'))) {
-          maxAllowed = 1;
-        }
-        
-        const masterValue = Math.max(0, maxAllowed - total);
-        return matchesFilters && masterValue > 0;
-      }
-      return matchesFilters;
-    });
-    return m('div', { onclick: () => state.menuOpen = false }, [
-      m('header.header', [
-        m('img.logo', { src: import.meta.env.BASE_URL + 'logo.png', alt: 'Riftbro Logo' }),
-        m('a.header-nav-link', { href: '../', title: 'Home' }, '← Home'),
-        m('a.header-nav-link', { href: tradeMatcherUrl, title: 'Trade Matcher' }, '⇄ Trade Matcher'),
-        m('button.hamburger', { onclick: e => { e.stopPropagation(); state.menuOpen = !state.menuOpen; } }, '☰'),
-        state.menuOpen ? m('div.menu', { onclick: e => e.stopPropagation() }, [
-          m('p.user-info', `Logged in as ${state.user.email}`),
-          m('h4', 'Import Collection from Google Sheets'),
-          m('input', { type: 'text', placeholder: 'Google Sheets URL 1', value: state.sheetUrl1, oninput: e => state.sheetUrl1 = e.target.value }),
-          m('input', { type: 'text', placeholder: 'Google Sheets URL 2', value: state.sheetUrl2, oninput: e => state.sheetUrl2 = e.target.value }),
-          m('button', { onclick: importCollection }, 'Import Collection'),
-          Object.keys(state.userCards).length > 0 ? m('button', { onclick: clearCollection }, 'Clear Collection') : null,
-          m('button.sign-out', { onclick: () => { auth.signOut(); state.menuOpen = false; } }, 'Sign Out')
-        ]) : null
-      ]),
-      m('div.card-list', [
-        m('div.filters', [
-          m('select', { onchange: e => { e.stopPropagation(); state.filters.set = e.target.value; updateURL(); m.redraw(); } }, [
-            m('option', { value: '' }, 'All Sets'),
-            ...state.filterOptions.sets.map(s => m('option', { value: s.id }, `${s.label} (${s.count})`))
-          ]),
-          m('select', { onchange: e => { e.stopPropagation(); state.filters.domain = e.target.value; updateURL(); m.redraw(); } }, [
-            m('option', { value: '' }, 'All Domains'),
-            ...state.filterOptions.domains.map(d => m('option', { value: d.id }, `${d.label} (${d.count})`))
-          ]),
-          m('select', { onchange: e => { e.stopPropagation(); state.filters.rarity = e.target.value; updateURL(); m.redraw(); } }, [
-            m('option', { value: '' }, 'All Rarities'),
-            ...state.filterOptions.rarities.map(r => m('option', { value: r.id }, `${r.label} (${r.count})`))
-          ]),
-          m('select', { onchange: e => { e.stopPropagation(); state.filters.cardType = e.target.value; updateURL(); m.redraw(); } }, [
-            m('option', { value: '' }, 'All Card Types'),
-            ...state.filterOptions.cardTypes.map(ct => m('option', { value: ct.id }, `${ct.label} (${ct.count})`))
-          ]),
-          m('select', { onchange: e => { e.stopPropagation(); state.filters.tag = e.target.value; updateURL(); m.redraw(); } }, [
-            m('option', { value: '' }, 'All Tags'),
-            ...state.filterOptions.tags.map(t => m('option', { value: t.tag }, `${t.tag} (${t.count})`))
-          ]),
-          m('button.clear-filters', { onclick: e => { e.stopPropagation(); Object.keys(state.filters).forEach(k => { if (k !== 'tradeUser') state.filters[k] = (k === 'tradeOnly' || k === 'masterOnly') ? false : ''; }); updateURL(); m.redraw(); } }, 'Clear Filters'),
-          m('label', { for: 'tradeOnly' }, [
-            m('input[type=checkbox][id=tradeOnly]', { 
-              checked: state.filters.tradeOnly, 
-              onclick: e => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                state.filters.tradeOnly = !state.filters.tradeOnly; 
-                updateURL(); 
-                m.redraw(); 
-              } 
-            }),
-            ' Show only tradeable cards'
-          ]),
-          m('label', { for: 'masterOnly' }, [
-            m('input[type=checkbox][id=masterOnly]', { 
-              checked: state.filters.masterOnly, 
-              onclick: e => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                state.filters.masterOnly = !state.filters.masterOnly; 
-                updateURL(); 
-                m.redraw(); 
-              } 
-            }),
-            ' Show only master cards'
-          ]),
-          m('p.filter-count', `Showing ${filteredCards.length} of ${state.cards.length} cards`)
-        ]),
-        state.loading ? m('p', 'Loading...') : m('div.grid', filteredCards.map(card => 
-          m('div.card', { key: card.id }, [
-            m('img', {
-              'data-src': card.cardImage.url,
-              onclick: () => state.selectedCard = card,
-              oncreate: (vnode) => {
-                const img = vnode.dom;
-                const observer = new IntersectionObserver((entries) => {
-                  entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                      img.src = img.dataset.src;
-                      observer.unobserve(img);
-                    }
-                  });
-                }, { rootMargin: '50px' }); // Load 50px before entering view
-                observer.observe(img);
-              }
-            }),
-
-            state.user ? m('div.collection', [
-              m('div.normal', `Normal: ${state.userCards[card.id]?.normal || 0}`),
-              m('div.foil', `Foil: ${state.userCards[card.id]?.foil || 0}`),
-              m('div.trade', `Trade: ${state.userCards[card.id]?.trade || 0}`),
-              (() => {
-                const userCard = state.userCards[card.id] || { normal: 0, foil: 0 };
-                const total = userCard.normal + userCard.foil;
-                
-                // Check card types (case insensitive)
-                const cardTypes = card.cardType?.type || [];
-                const typeLabels = cardTypes.map(ct => ct.label?.toLowerCase()).filter(Boolean);
-                
-                let maxAllowed = 3; // Default
-                
-                if (typeLabels.some(label => label.includes('rune'))) {
-                  maxAllowed = 1;
-                } else if (typeLabels.some(label => label.includes('battlefield'))) {
-                  maxAllowed = 2;
-                } else if (typeLabels.some(label => label.includes('legend'))) {
-                  maxAllowed = 1;
-                }
-                
-                const masterValue = Math.max(0, maxAllowed - total);
-                return m('div.master', `Master: ${masterValue}`);
-              })()
-            ]) : null
-          ])
-        ))
-      ])
-    ]);
-  }
-};
-
-// Modal component
-const CardModal = {
-  view: () => state.selectedCard ? m('div.modal', { onclick: () => state.selectedCard = null }, [
-    m('div.modal-content', { onclick: e => e.stopPropagation(), "glare-mask-mode": "luminance" }, [
-      m('hover-tilt.modal-image', m('img', { src: state.selectedCard.cardImage.url }))
-    ])
-  ]) : null
-};
-
-// Login component
-const Login = {
-  view: () => m('div.login-screen', [
-    m('div.login-container', [
-      m('img.logo', { src: 'images/logo.png', alt: 'Riftbro Logo' }),
-      m('h2', 'Welcome to Riftbro'),
-      m('p', 'Please sign in to access your card collection.'),
-      m('form.login-form', { onsubmit: e => { e.preventDefault(); handleAuth(); } }, [
-        m('input[type=email][placeholder=Email][required]', { value: state.email, oninput: e => state.email = e.target.value }),
-        m('input[type=password][placeholder=Password][required]', { value: state.password, oninput: e => state.password = e.target.value }),
-        m('button[type=submit]', state.authMode === 'signin' ? 'Sign In' : 'Sign Up'),
-        m('button[type=button]', { onclick: () => state.authMode = state.authMode === 'signin' ? 'signup' : 'signin' }, state.authMode === 'signin' ? 'Need to sign up?' : 'Already have account?'),
-        state.error ? m('p.error', state.error) : null
-      ]),
-      m('div.login-divider', m('span', 'or')),
-      m('a.trade-matcher-link', { href: '../' }, [
-        m('span.trade-matcher-icon', '⌂'),
-        m('span', 'Home'),
-        m('small', 'Go back to the app hub'),
-      ])
-    ])
-  ])
-};
-
-// Main app component
-const App = {
-  view: () => state.user ? [
-    CardList.view(),
-    CardModal.view()
-  ] : Login.view()
-};
-
-// Auth handler
-async function handleAuth() {
-  try {
-    if (state.authMode === 'signin') {
-      await signInWithEmailAndPassword(auth, state.email, state.password);
-    } else {
-      await createUserWithEmailAndPassword(auth, state.email, state.password);
-    }
-    state.error = '';
-  } catch (error) {
-    state.error = error.message;
-  }
-  m.redraw();
-}
-
-// Load cards
+// -- Data loading --
 async function loadCards() {
-  const cached = localStorage.getItem('cachedCards');
-  const cacheTimestamp = localStorage.getItem('cardsCacheTimestamp');
-  const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
-  if (cached && cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < CACHE_DURATION) {
-    // Use cached data
-    state.cards = JSON.parse(cached);
-    populateFilterOptions();
-    m.redraw();
-    console.log('Loaded cards from localStorage cache');
-  } else {
-    // Fetch from Firebase
-    try {
-      const querySnapshot = await getDocs(collection(db, 'cards'));
-      state.cards = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
-      // Cache the data
-      localStorage.setItem('cachedCards', JSON.stringify(state.cards));
-      localStorage.setItem('cardsCacheTimestamp', Date.now().toString());
-      
-      populateFilterOptions();
-      m.redraw();
-      console.log('Loaded cards from Firebase and cached to localStorage');
-    } catch (error) {
-      console.error('Error loading cards:', error);
-      // If Firebase fails and we have cache, use it even if old
-      if (cached) {
-        state.cards = JSON.parse(cached);
-        populateFilterOptions();
-        m.redraw();
-        console.log('Firebase failed, using old cached cards');
-      }
-    }
+  const raw = localStorage.getItem('rb_cards');
+  const ts  = localStorage.getItem('rb_cards_ts');
+  if (raw && ts && Date.now() - +ts < CARD_TTL) {
+    state.cards = JSON.parse(raw);
+    return;
   }
+  const snap = await getDocs(collection(db, 'cards'));
+  state.cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  localStorage.setItem('rb_cards', JSON.stringify(state.cards));
+  localStorage.setItem('rb_cards_ts', String(Date.now()));
 }
 
-// Populate filter options
-function populateFilterOptions() {
-  const sets = new Map();
-  const domains = new Map();
-  const rarities = new Map();
-  const cardTypes = new Map();
-  const tags = new Map();
-
-  state.cards.forEach(card => {
-    if (card.set?.value) {
-      const key = JSON.stringify({ id: card.set.value.id, label: card.set.value.label });
-      sets.set(key, (sets.get(key) || 0) + 1);
+async function loadUserCollection(username, bust = false) {
+  const key   = `rb_user_${username}`;
+  const tsKey = `rb_user_ts_${username}`;
+  if (!bust) {
+    const raw = localStorage.getItem(key);
+    const ts  = localStorage.getItem(tsKey);
+    if (raw && ts && Date.now() - +ts < USER_TTL) {
+      state.userCards = JSON.parse(raw);
+      return;
     }
-    if (card.domain?.values) {
-      card.domain.values.forEach(d => {
-        const key = JSON.stringify({ id: d.id, label: d.label });
-        domains.set(key, (domains.get(key) || 0) + 1);
-      });
-    }
-    if (card.rarity?.value) {
-      const key = JSON.stringify({ id: card.rarity.value.id, label: card.rarity.value.label });
-      rarities.set(key, (rarities.get(key) || 0) + 1);
-    }
-    if (card.cardType?.type) {
-      card.cardType.type.forEach(ct => {
-        if (ct && ct.id && ct.label) {
-          const key = JSON.stringify({ id: ct.id, label: ct.label });
-          cardTypes.set(key, (cardTypes.get(key) || 0) + 1);
-        }
-      });
-    }
-    if (card.tags?.tags) {
-      card.tags.tags.forEach(tag => {
-        if (typeof tag === 'string') {
-          tags.set(tag, (tags.get(tag) || 0) + 1);
-        }
-      });
-    }
+  }
+  const url = PROXY + encodeURIComponent(DOTGG_API);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
   });
-
-  state.filterOptions.sets = Array.from(sets.entries()).map(([k, count]) => ({ ...JSON.parse(k), count })).sort((a, b) => a.label.localeCompare(b.label));
-  state.filterOptions.domains = Array.from(domains.entries()).map(([k, count]) => ({ ...JSON.parse(k), count })).sort((a, b) => a.label.localeCompare(b.label));
-  state.filterOptions.rarities = Array.from(rarities.entries()).map(([k, count]) => ({ ...JSON.parse(k), count })).sort((a, b) => a.label.localeCompare(b.label));
-  state.filterOptions.cardTypes = Array.from(cardTypes.entries()).map(([k, count]) => ({ ...JSON.parse(k), count })).sort((a, b) => a.label.localeCompare(b.label));
-  state.filterOptions.tags = Array.from(tags.entries()).map(([tag, count]) => ({ tag, count })).sort((a, b) => (a.tag || '').localeCompare(b.tag || ''));
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const data = await res.json();
+  if (!data.collection || !Array.isArray(data.collection))
+    throw new Error(`No collection found for "${username}". Check the username.`);
+  state.userCards = {};
+  for (const e of data.collection) {
+    if (!e.card) continue;
+    state.userCards[e.card] = {
+      normal: +e.normal || 0,
+      foil:   +e.foil   || 0,
+      trade:  +e.trade  || 0,
+      wish:   +e.wish   || 0,
+    };
+  }
+  localStorage.setItem(key, JSON.stringify(state.userCards));
+  localStorage.setItem(tsKey, String(Date.now()));
 }
 
-// Load user cards
-async function loadUserCards(uid) {
-  // Load from localStorage first for immediate display
-  const cached = localStorage.getItem(`userCards_${uid}`);
-  if (cached) {
-    state.userCards = JSON.parse(cached);
-    m.redraw();
-    console.log('Loaded user cards from localStorage cache');
-  }
-
-  // Then sync with Firebase
+async function init(bust = false) {
+  state.phase     = 'loading';
+  state.loadError = null;
+  state.userError = null;
+  m.redraw();
   try {
-    const userCardsRef = collection(db, 'users', uid, 'cards');
-    console.log('Fetching user cards from Firebase for uid:', uid);
-    const querySnapshot = await getDocs(userCardsRef);
-    console.log('Fetched user cards from Firebase, doc count:', querySnapshot.docs.length);
-    state.userCards = {};
-    querySnapshot.docs.forEach(doc => {
-      state.userCards[doc.id] = doc.data();
-    });
-
-    // Recalculate trade values based on card types and quantities
-    Object.keys(state.userCards).forEach(cardId => {
-      const cardData = state.cards.find(card => card.id === cardId);
-      if (cardData) {
-        const userCard = state.userCards[cardId];
-        const total = (userCard.normal || 0) + (userCard.foil || 0);
-        
-        // Check card types (case insensitive)
-        const cardTypes = cardData.cardType?.type || [];
-        const typeLabels = cardTypes.map(ct => ct.label?.toLowerCase()).filter(Boolean);
-        
-        let maxKeep = 3; // Default
-        let canTrade = true;
-        
-        if (typeLabels.some(label => label.includes('rune'))) {
-          canTrade = false;
-        } else if (typeLabels.some(label => label.includes('battlefield'))) {
-          maxKeep = 2;
-        } else if (typeLabels.some(label => label.includes('legend'))) {
-          maxKeep = 1;
-        }
-        
-        // Calculate trade
-        const newTrade = canTrade ? Math.max(0, total - maxKeep) : 0;
-        
-        // Update if different
-        if (userCard.trade !== newTrade) {
-          userCard.trade = newTrade;
-          // Save back to Firebase
-          setDoc(doc(db, 'users', uid, 'cards', cardId), userCard, { merge: true }).catch(err => 
-            console.error('Error updating trade for card:', cardId, err)
-          );
-        }
-      }
-    });
-    
-    // Cache the latest data
-    localStorage.setItem(`userCards_${uid}`, JSON.stringify(state.userCards));
-    
+    await loadCards();
+  } catch (e) {
+    state.loadError = e.message;
+    state.phase = 'main';
     m.redraw();
-    console.log('Synced user cards from Firebase and updated cache');
-  } catch (error) {
-    console.error('Error loading user cards:', error);
-    // Keep the cached data if Firebase fails
+    return;
   }
-}
-
-// Load user data
-async function loadUserData(uid) {
-  try {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (userDoc.exists()) {
-      const data = userDoc.data();
-      state.sheetUrl1 = data.sheetUrls?.[0] || '';
-      state.sheetUrl2 = data.sheetUrls?.[1] || '';
-      console.log('Loaded sheetUrls from Firebase:', data.sheetUrls);
+  if (state.username) {
+    try {
+      await loadUserCollection(state.username, bust);
+    } catch (e) {
+      state.userError = e.message;
     }
-  } catch (error) {
-    console.error('Error loading user data:', error);
   }
-  // Also load from localStorage as backup
-  const saved = localStorage.getItem('sheetUrls');
-  if (saved) {
-    const urls = JSON.parse(saved);
-    if (!state.sheetUrl1) state.sheetUrl1 = urls[0] || '';
-    if (!state.sheetUrl2) state.sheetUrl2 = urls[1] || '';
-    console.log('Loaded sheetUrls from localStorage:', urls);
-  }
+  state.phase = 'main';
+  m.redraw();
 }
 
-// Clear collection
-async function clearCollection() {
-  if (!state.user) return;
+async function refresh() {
+  if (!state.username) return;
+  state.userError = null;
+  state.phase = 'loading';
+  m.redraw();
   try {
-    // Delete all user cards from Firebase
-    const userCardsRef = collection(db, 'users', state.user.uid, 'cards');
-    const querySnapshot = await getDocs(userCardsRef);
-    const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
-    await Promise.all(deletePromises);
-    
-    // Clear local state
-    state.userCards = {};
-    state.sheetUrl1 = '';
-    state.sheetUrl2 = '';
-    localStorage.removeItem('sheetUrls');
-    localStorage.removeItem(`userCards_${state.user.uid}`);
-    m.redraw();
-  } catch (error) {
-    console.error('Error clearing collection:', error);
-    alert('Error clearing collection. Check console for details.');
+    await loadUserCollection(state.username, true);
+  } catch (e) {
+    state.userError = e.message;
   }
+  state.phase = 'main';
+  m.redraw();
 }
 
-// Auth state listener
-onAuthStateChanged(auth, async (user) => {
-  console.log('Auth state changed:', !!user);
-  state.user = user;
-  if (user) {
-    await loadUserCards(user.uid);
-    await loadUserData(user.uid);
-  } else {
-    state.userCards = {};
-    state.sheetUrl1 = '';
-    state.sheetUrl2 = '';
-  }
-  m.redraw();
-});
+// -- Computed --
+function cardsForSet(setId) {
+  if (!setId || setId === 'all') return state.cards;
+  return state.cards.filter(c => c.set?.value?.id === setId);
+}
 
-// Initialize
-loadCards().then(() => {
-  state.loading = false;
-  m.redraw();
-}).catch(() => {
-  state.loading = false;
-  m.redraw();
-});
+function computeStats(setId) {
+  const cards = cardsForSet(setId).filter(c => !isOvernumbered(c));
+  let uniqueTotal = 0, uniqueHave = 0;
+  let masterTotal = 0, masterHave = 0;
+  const rarityMiss = {};
+  const typeMiss   = {};
+  const domainMiss = {};
+
+  for (const card of cards) {
+    const owned = ownedTotal(card.id);
+    uniqueTotal++;
+    if (owned > 0) {
+      uniqueHave++;
+    } else {
+      const rId    = card.rarity?.value?.id    || 'unknown';
+      const rLabel = card.rarity?.value?.label || rId;
+      if (!rarityMiss[rId]) rarityMiss[rId] = { label: rLabel, count: 0 };
+      rarityMiss[rId].count++;
+      for (const ct of card.cardType?.type || []) {
+        if (!ct.id) continue;
+        if (!typeMiss[ct.id]) typeMiss[ct.id] = { label: ct.label || ct.id, count: 0 };
+        typeMiss[ct.id].count++;
+      }
+      for (const d of card.domain?.values || []) {
+        if (!d.id) continue;
+        if (!domainMiss[d.id]) domainMiss[d.id] = { label: d.label || d.id, count: 0 };
+        domainMiss[d.id].count++;
+      }
+    }
+    const target = masterTarget(card);
+    if (target !== null) {
+      masterTotal += target;
+      masterHave  += Math.min(owned, target);
+    }
+  }
+
+  return {
+    uniqueTotal, uniqueHave,
+    masterTotal, masterHave,
+    rarityMiss: Object.entries(rarityMiss)
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => {
+        const ai = RARITY_ORDER.indexOf(a.id);
+        const bi = RARITY_ORDER.indexOf(b.id);
+        return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+      }),
+    typeMiss: Object.entries(typeMiss)
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => b.count - a.count),
+    domainMiss: Object.entries(domainMiss)
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => b.count - a.count),
+  };
+}
+
+function filteredCards() {
+  let cards = cardsForSet(state.selectedSet).filter(c => !isOvernumbered(c));
+  const rF = state.chipRarity || state.filterRarity;
+  const tF = state.chipType   || state.filterType;
+  const dF = state.chipDomain || state.filterDomain;
+  if (rF) cards = cards.filter(c => c.rarity?.value?.id === rF);
+  if (tF) cards = cards.filter(c => (c.cardType?.type || []).some(ct => ct.id === tF));
+  if (dF) cards = cards.filter(c => (c.domain?.values || []).some(d => d.id === dF));
+  if (state.filterMissing) cards = cards.filter(c => !isOwned(c.id));
+  if (state.filterTrade)   cards = cards.filter(c => (state.userCards[c.id]?.trade || 0) > 0);
+  if (state.filterWish)    cards = cards.filter(c => (state.userCards[c.id]?.wish  || 0) > 0);
+  return cards;
+}
+
+// -- Components --
+const SetupScreen = {
+  view() {
+    return m('.setup-page', [
+      m('img.setup-logo', { src: import.meta.env.BASE_URL + 'logo.png', alt: 'Riftbro' }),
+      m('h1.setup-title', 'Card Collection'),
+      m('p.setup-sub', 'Enter your riftbound.gg username to load your collection'),
+      m('form.setup-form', {
+        onsubmit(e) {
+          e.preventDefault();
+          const val = state.username.trim();
+          if (!val) return;
+          localStorage.setItem('rb_username', val);
+          init();
+        },
+      }, [
+        m('input.setup-input', {
+          placeholder: 'riftbound.gg username',
+          value: state.username,
+          oninput: e => state.username = e.target.value,
+          autocomplete: 'off',
+          spellcheck: false,
+        }),
+        m('button.start-btn[type=submit]', 'View Collection'),
+      ]),
+      m('a.setup-home', { href: '../' }, 'â† Back to Hub'),
+    ]);
+  },
+};
+
+const LoadingScreen = {
+  view() {
+    return m('.loading-screen', [
+      m('img.setup-logo', { src: import.meta.env.BASE_URL + 'logo.png' }),
+      m('.loading-dots', [m('span'), m('span'), m('span')]),
+      m('p.loading-text', 'Loading collection\u2026'),
+    ]);
+  },
+};
+
+const ProgressBar = {
+  view({ attrs: { label, have, total, accent } }) {
+    const pct = total > 0 ? Math.round(have / total * 100) : 0;
+    return m('.progress-wrap', [
+      m('.progress-label-row', [
+        m('span.progress-label', label),
+        m('span.progress-frac', `${have} / ${total}`),
+        m('span.progress-pct', { class: pct === 100 ? 'complete' : '' }, `${pct}%`),
+      ]),
+      m('.progress-track', m('.progress-fill', {
+        style: { width: `${pct}%`, background: accent || 'var(--accent)' },
+      })),
+    ]);
+  },
+};
+
+const StatsPanel = {
+  view() {
+    const stats = computeStats(state.selectedSet);
+    return m('.stats-panel', [
+      m('.progress-group', [
+        m(ProgressBar, { label: 'Unique', have: stats.uniqueHave, total: stats.uniqueTotal }),
+        m(ProgressBar, { label: 'Master Set', have: stats.masterHave, total: stats.masterTotal, accent: '#8b7fce' }),
+      ]),
+      stats.rarityMiss.length ? m('.chip-group', [
+        m('.chip-group-label', 'Missing by Rarity'),
+        m('.chip-row', stats.rarityMiss.map(r =>
+          m('.miss-chip', {
+            key: r.id,
+            class: state.chipRarity === r.id ? 'active' : '',
+            style: { '--chip-c': RARITY_COLOR[r.id] || '#888' },
+            onclick() {
+              state.chipRarity = state.chipRarity === r.id ? '' : r.id;
+              state.chipType   = '';
+              state.chipDomain = '';
+            },
+          }, [m('span.chip-dot'), m('span.chip-label', r.label), m('span.chip-count', r.count)])
+        )),
+      ]) : null,
+      stats.typeMiss.length ? m('.chip-group', [
+        m('.chip-group-label', 'Missing by Type'),
+        m('.chip-row', stats.typeMiss.map(t =>
+          m('.miss-chip', {
+            key: t.id,
+            class: state.chipType === t.id ? 'active' : '',
+            onclick() {
+              state.chipType   = state.chipType === t.id ? '' : t.id;
+              state.chipRarity = '';
+              state.chipDomain = '';
+            },
+          }, [m('span.chip-label', t.label), m('span.chip-count', t.count)])
+        )),
+      ]) : null,
+      stats.domainMiss.length ? m('.chip-group', [
+        m('.chip-group-label', 'Missing by Color'),
+        m('.chip-row', stats.domainMiss.map(d =>
+          m('.miss-chip', {
+            key: d.id,
+            class: state.chipDomain === d.id ? 'active' : '',
+            onclick() {
+              state.chipDomain = state.chipDomain === d.id ? '' : d.id;
+              state.chipRarity = '';
+              state.chipType   = '';
+            },
+          }, [m('span.chip-label', d.label), m('span.chip-count', d.count)])
+        )),
+      ]) : null,
+    ]);
+  },
+};
+
+const CardGrid = {
+  view() {
+    const cards   = filteredCards();
+    const hasUser = Object.keys(state.userCards).length > 0;
+    const hasActive = state.chipRarity || state.chipType || state.chipDomain ||
+                      state.filterRarity || state.filterDomain || state.filterType ||
+                      state.filterMissing || state.filterTrade || state.filterWish;
+    return m('.card-grid-section', [
+      m('.grid-toolbar', [
+        m('span.grid-count', `${cards.length} card${cards.length !== 1 ? 's' : ''}`),
+        m('.quick-filters', [
+          hasUser ? m('label.qf-label', { class: state.filterMissing ? 'active' : '' }, [
+            m('input[type=checkbox]', {
+              checked: state.filterMissing,
+              onchange: e => { state.filterMissing = e.target.checked; resetChips(); },
+            }),
+            ' Missing',
+          ]) : null,
+          hasUser ? m('label.qf-label', { class: state.filterTrade ? 'active' : '' }, [
+            m('input[type=checkbox]', {
+              checked: state.filterTrade,
+              onchange: e => { state.filterTrade = e.target.checked; resetChips(); },
+            }),
+            ' For Trade',
+          ]) : null,
+          hasUser ? m('label.qf-label', { class: state.filterWish ? 'active' : '' }, [
+            m('input[type=checkbox]', {
+              checked: state.filterWish,
+              onchange: e => { state.filterWish = e.target.checked; resetChips(); },
+            }),
+            ' Wishlist',
+          ]) : null,
+          m('button.filter-toggle', {
+            class: state.filtersOpen ? 'open' : '',
+            onclick: () => state.filtersOpen = !state.filtersOpen,
+          }, state.filtersOpen ? 'â–² Filters' : 'â–¼ Filters'),
+          hasActive ? m('button.clear-chip-btn', { onclick: clearFilters }, 'âœ• Clear') : null,
+        ]),
+      ]),
+      state.filtersOpen ? m('.adv-filters', [
+        m('select.adv-select', {
+          value: state.filterRarity,
+          onchange: e => { state.filterRarity = e.target.value; state.chipRarity = ''; },
+        }, [
+          m('option', { value: '' }, 'All Rarities'),
+          ...RARITY_ORDER.map(id => m('option', { value: id }, id.charAt(0).toUpperCase() + id.slice(1))),
+        ]),
+        m('select.adv-select', {
+          value: state.filterDomain,
+          onchange: e => { state.filterDomain = e.target.value; state.chipDomain = ''; },
+        }, [
+          m('option', { value: '' }, 'All Colors'),
+          ...['fury','body','mind','calm','chaos','order','colorless'].map(id =>
+            m('option', { value: id }, id.charAt(0).toUpperCase() + id.slice(1))
+          ),
+        ]),
+        m('button.adv-clear', { onclick: clearFilters }, 'Reset'),
+      ]) : null,
+      m('.card-grid', cards.map(card => {
+        const u      = state.userCards[card.id] || {};
+        const owned  = (u.normal || 0) + (u.foil || 0);
+        const missing = hasUser && owned === 0;
+        return m('.cg-card', {
+          key: card.id,
+          class: missing ? 'missing' : '',
+          onclick: () => state.selectedCard = card,
+        }, [
+          m('.cg-img-wrap', [
+            m('img.cg-img', {
+              src: card.cardImage?.url || '',
+              alt: card.name || card.id,
+              loading: 'lazy',
+            }),
+            m('.cg-rarity-dot', {
+              style: { background: RARITY_COLOR[card.rarity?.value?.id] || '#666' },
+            }),
+          ]),
+          m('.cg-body', [
+            m('.cg-name', card.name || card.id),
+            m('.cg-id', card.id),
+            hasUser ? m('.cg-badges', [
+              m('.badge.n', `N ${u.normal || 0}`),
+              m('.badge.f', `F ${u.foil   || 0}`),
+              (u.trade || 0) > 0 ? m('.badge.t', `T ${u.trade}`) : null,
+              (u.wish  || 0) > 0 ? m('.badge.w', `W ${u.wish}`)  : null,
+            ]) : null,
+          ]),
+        ]);
+      })),
+    ]);
+  },
+};
+
+const CardModal = {
+  view() {
+    if (!state.selectedCard) return null;
+    const card = state.selectedCard;
+    const u    = state.userCards[card.id] || {};
+    return m('.modal', { onclick: () => state.selectedCard = null }, [
+      m('.modal-content', { onclick: e => e.stopPropagation() }, [
+        m('.modal-img-wrap',
+          m('img.modal-img', { src: card.cardImage?.url || '', alt: card.name || card.id })
+        ),
+        m('.modal-info', [
+          m('h2.modal-name', card.name || card.id),
+          m('.modal-id', card.id),
+          card.rarity?.value ? m('.modal-rarity', {
+            style: { color: RARITY_COLOR[card.rarity.value.id] || '#888' },
+          }, card.rarity.value.label) : null,
+          card.set?.value ? m('.modal-set', card.set.value.label) : null,
+          (card.domain?.values || []).length
+            ? m('.modal-meta', card.domain.values.map(d => d.label).join(' Â· '))
+            : null,
+          (card.cardType?.type || []).length
+            ? m('.modal-meta', card.cardType.type.map(t => t.label).join(' Â· '))
+            : null,
+          Object.keys(state.userCards).length ? m('.modal-counts', [
+            m('.modal-badge.n', [m('span.mb-val', u.normal || 0), m('span.mb-lab', 'Normal')]),
+            m('.modal-badge.f', [m('span.mb-val', u.foil   || 0), m('span.mb-lab', 'Foil')]),
+            m('.modal-badge.t', [m('span.mb-val', u.trade  || 0), m('span.mb-lab', 'Trade')]),
+            m('.modal-badge.w', [m('span.mb-val', u.wish   || 0), m('span.mb-lab', 'Wish')]),
+          ]) : null,
+        ]),
+      ]),
+    ]);
+  },
+};
+
+const MainScreen = {
+  view() {
+    return m('.main-screen', [
+      m('header.app-header', [
+        m('img.header-logo', { src: import.meta.env.BASE_URL + 'logo.png', alt: 'Riftbro' }),
+        m('a.header-home', { href: '../' }, 'â† Home'),
+        m('.header-right', [
+          m('span.header-username', state.username),
+          m('button.change-btn', {
+            title: 'Change user',
+            onclick() {
+              localStorage.removeItem('rb_username');
+              state.username  = '';
+              state.userCards = {};
+              state.phase     = 'setup';
+            },
+          }, 'Change'),
+          m('button.refresh-btn', { onclick: refresh, title: 'Refresh collection' }, 'â†»'),
+        ]),
+      ]),
+      m('.set-tabs', [
+        m('.set-tab', {
+          class: state.selectedSet === 'all' ? 'active' : '',
+          onclick() { state.selectedSet = 'all'; resetChips(); },
+        }, 'All Sets'),
+        ...SETS.map(s => m('.set-tab', {
+          key: s.id,
+          class: state.selectedSet === s.id ? 'active' : '',
+          onclick() { state.selectedSet = s.id; resetChips(); },
+        }, `${s.code} â€“ ${s.label}`)),
+      ]),
+      m('.main-body', [
+        state.userError  ? m('.user-error', `\u26A0 ${state.userError}`) : null,
+        state.loadError  ? m('.user-error', `\u26A0 Cards failed to load: ${state.loadError}`) : null,
+        Object.keys(state.userCards).length > 0 ? m(StatsPanel) : null,
+        m(CardGrid),
+      ]),
+      m(CardModal),
+    ]);
+  },
+};
+
+const App = {
+  view() {
+    if (state.phase === 'setup')   return m(SetupScreen);
+    if (state.phase === 'loading') return m(LoadingScreen);
+    return m(MainScreen);
+  },
+};
+
+// -- Boot --
+if (state.username) init();
 
 // Mount app
 m.mount(document.getElementById('app'), App);
