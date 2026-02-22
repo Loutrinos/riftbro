@@ -4,15 +4,14 @@ import { db } from './firebase.js';
 import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
 // -- Constants --
-const DOTGG_API = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
-const PROXY     = 'https://corsproxy.io/?url=';
+const DOTGG_API = '/api/dotgg/cgfw/getuserdata?game=riftbound';
 const CARD_TTL  = 24 * 60 * 60 * 1000; // 24 h
 const USER_TTL  = 30 * 60 * 1000;       // 30 min
 
 const SETS = [
-  { id: 'ogn', label: 'Origins',         code: 'OGN' },
-  { id: 'sfd', label: 'Spiritforged',    code: 'SFD' },
-  { id: 'ogs', label: 'Proving Grounds', code: 'OGS' },
+  { id: 'OGN', label: 'Origins',         code: 'OGN' },
+  { id: 'SFD', label: 'Spiritforged',    code: 'SFD' },
+  { id: 'OGS', label: 'Proving Grounds', code: 'OGS' },
 ];
 
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic'];
@@ -31,6 +30,9 @@ const isType = (c, t) => (c.cardType?.type || []).some(ct =>
 const isRune        = c => isType(c, 'rune');
 const isLegend      = c => isType(c, 'legend');
 const isBattlefield = c => isType(c, 'battlefield');
+
+// Normalize Firebase ID (e.g. "ogn-001-298") to DotGG format ("OGN-001")
+const normId = id => id ? id.split('-').slice(0, 2).join('-').toUpperCase() : id;
 
 function masterTarget(card) {
   if (isOvernumbered(card)) return null;
@@ -66,7 +68,7 @@ if (state.username) state.phase = 'loading';
 
 // -- Data helpers --
 function ownedTotal(id) {
-  const u = state.userCards[id];
+  const u = state.userCards[normId(id)];
   return u ? (u.normal || 0) + (u.foil || 0) : 0;
 }
 function isOwned(id) { return ownedTotal(id) > 0; }
@@ -102,18 +104,21 @@ async function loadCards() {
 }
 
 async function loadUserCollection(username, bust = false) {
-  const key   = `rb_user_${username}`;
-  const tsKey = `rb_user_ts_${username}`;
+  const key   = `rb_user_v2_${username}`;
+  const tsKey = `rb_user_v2_ts_${username}`;
   if (!bust) {
     const raw = localStorage.getItem(key);
     const ts  = localStorage.getItem(tsKey);
     if (raw && ts && Date.now() - +ts < USER_TTL) {
-      state.userCards = JSON.parse(raw);
-      return;
+      const cached = JSON.parse(raw);
+      if (Object.keys(cached).length > 0) {
+        state.userCards = cached;
+        return;
+      }
+      // cached empty — refetch
     }
   }
-  const url = PROXY + encodeURIComponent(DOTGG_API);
-  const res = await fetch(url, {
+  const res = await fetch(DOTGG_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username }),
@@ -126,14 +131,16 @@ async function loadUserCollection(username, bust = false) {
   for (const e of data.collection) {
     if (!e.card) continue;
     state.userCards[e.card] = {
-      normal: +e.normal || 0,
-      foil:   +e.foil   || 0,
-      trade:  +e.trade  || 0,
-      wish:   +e.wish   || 0,
+      normal: +e.standard || 0,
+      foil:   +e.foil     || 0,
+      trade:  +e.trade    || 0,
+      wish:   +e.wish     || 0,
     };
   }
-  localStorage.setItem(key, JSON.stringify(state.userCards));
-  localStorage.setItem(tsKey, String(Date.now()));
+  if (Object.keys(state.userCards).length > 0) {
+    localStorage.setItem(key, JSON.stringify(state.userCards));
+    localStorage.setItem(tsKey, String(Date.now()));
+  }
 }
 
 async function init(bust = false) {
@@ -244,8 +251,8 @@ function filteredCards() {
   if (tF) cards = cards.filter(c => (c.cardType?.type || []).some(ct => ct.id === tF));
   if (dF) cards = cards.filter(c => (c.domain?.values || []).some(d => d.id === dF));
   if (state.filterMissing) cards = cards.filter(c => !isOwned(c.id));
-  if (state.filterTrade)   cards = cards.filter(c => (state.userCards[c.id]?.trade || 0) > 0);
-  if (state.filterWish)    cards = cards.filter(c => (state.userCards[c.id]?.wish  || 0) > 0);
+  if (state.filterTrade)   cards = cards.filter(c => (state.userCards[normId(c.id)]?.trade || 0) > 0);
+  if (state.filterWish)    cards = cards.filter(c => (state.userCards[normId(c.id)]?.wish  || 0) > 0);
   return cards;
 }
 
@@ -274,7 +281,7 @@ const SetupScreen = {
         }),
         m('button.start-btn[type=submit]', 'View Collection'),
       ]),
-      m('a.setup-home', { href: '../' }, 'â† Back to Hub'),
+      m('a.setup-home', { href: '../' }, '← Back to Hub'),
     ]);
   },
 };
@@ -395,8 +402,8 @@ const CardGrid = {
           m('button.filter-toggle', {
             class: state.filtersOpen ? 'open' : '',
             onclick: () => state.filtersOpen = !state.filtersOpen,
-          }, state.filtersOpen ? 'â–² Filters' : 'â–¼ Filters'),
-          hasActive ? m('button.clear-chip-btn', { onclick: clearFilters }, 'âœ• Clear') : null,
+          }, state.filtersOpen ? '▲ Filters' : '▼ Filters'),
+          hasActive ? m('button.clear-chip-btn', { onclick: clearFilters }, '✕ Clear') : null,
         ]),
       ]),
       state.filtersOpen ? m('.adv-filters', [
@@ -419,7 +426,7 @@ const CardGrid = {
         m('button.adv-clear', { onclick: clearFilters }, 'Reset'),
       ]) : null,
       m('.card-grid', cards.map(card => {
-        const u      = state.userCards[card.id] || {};
+        const u      = state.userCards[normId(card.id)] || {};
         const owned  = (u.normal || 0) + (u.foil || 0);
         const missing = hasUser && owned === 0;
         return m('.cg-card', {
@@ -438,8 +445,8 @@ const CardGrid = {
             }),
           ]),
           m('.cg-body', [
-            m('.cg-name', card.name || card.id),
-            m('.cg-id', card.id),
+            m('.cg-name', card.name || normId(card.id)),
+            m('.cg-id', normId(card.id)),
             hasUser ? m('.cg-badges', [
               m('.badge.n', `N ${u.normal || 0}`),
               m('.badge.f', `F ${u.foil   || 0}`),
@@ -457,24 +464,24 @@ const CardModal = {
   view() {
     if (!state.selectedCard) return null;
     const card = state.selectedCard;
-    const u    = state.userCards[card.id] || {};
+    const u    = state.userCards[normId(card.id)] || {};
     return m('.modal', { onclick: () => state.selectedCard = null }, [
       m('.modal-content', { onclick: e => e.stopPropagation() }, [
         m('.modal-img-wrap',
           m('img.modal-img', { src: card.cardImage?.url || '', alt: card.name || card.id })
         ),
         m('.modal-info', [
-          m('h2.modal-name', card.name || card.id),
-          m('.modal-id', card.id),
+          m('h2.modal-name', card.name || normId(card.id)),
+          m('.modal-id', normId(card.id)),
           card.rarity?.value ? m('.modal-rarity', {
             style: { color: RARITY_COLOR[card.rarity.value.id] || '#888' },
           }, card.rarity.value.label) : null,
           card.set?.value ? m('.modal-set', card.set.value.label) : null,
           (card.domain?.values || []).length
-            ? m('.modal-meta', card.domain.values.map(d => d.label).join(' Â· '))
+            ? m('.modal-meta', card.domain.values.map(d => d.label).join(' · '))
             : null,
           (card.cardType?.type || []).length
-            ? m('.modal-meta', card.cardType.type.map(t => t.label).join(' Â· '))
+            ? m('.modal-meta', card.cardType.type.map(t => t.label).join(' · '))
             : null,
           Object.keys(state.userCards).length ? m('.modal-counts', [
             m('.modal-badge.n', [m('span.mb-val', u.normal || 0), m('span.mb-lab', 'Normal')]),
@@ -493,7 +500,7 @@ const MainScreen = {
     return m('.main-screen', [
       m('header.app-header', [
         m('img.header-logo', { src: import.meta.env.BASE_URL + 'logo.png', alt: 'Riftbro' }),
-        m('a.header-home', { href: '../' }, 'â† Home'),
+        m('a.header-home', { href: '../' }, '← Home'),
         m('.header-right', [
           m('span.header-username', state.username),
           m('button.change-btn', {
@@ -505,11 +512,12 @@ const MainScreen = {
               state.phase     = 'setup';
             },
           }, 'Change'),
-          m('button.refresh-btn', { onclick: refresh, title: 'Refresh collection' }, 'â†»'),
+          m('button.refresh-btn', { onclick: refresh, title: 'Refresh collection' }, '↻'),
         ]),
       ]),
       m('.set-tabs', [
         m('.set-tab', {
+          key: 'all',
           class: state.selectedSet === 'all' ? 'active' : '',
           onclick() { state.selectedSet = 'all'; resetChips(); },
         }, 'All Sets'),
@@ -517,7 +525,7 @@ const MainScreen = {
           key: s.id,
           class: state.selectedSet === s.id ? 'active' : '',
           onclick() { state.selectedSet = s.id; resetChips(); },
-        }, `${s.code} â€“ ${s.label}`)),
+        }, `${s.code} \u2013 ${s.label}`)),
       ]),
       m('.main-body', [
         state.userError  ? m('.user-error', `\u26A0 ${state.userError}`) : null,
