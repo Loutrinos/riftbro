@@ -22,7 +22,7 @@ body {
   justify-content: center;
   padding: 2rem;
   gap: 3rem;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 /* ── Particle canvas ── */
