@@ -4,7 +4,10 @@ import { db } from './firebase.js';
 import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
 // -- Constants --
-const DOTGG_API = '/api/dotgg/cgfw/getuserdata?game=riftbound';
+const DOTGG_ENDPOINT = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
+const DOTGG_API = import.meta.env.DEV
+  ? '/api/dotgg/cgfw/getuserdata?game=riftbound'
+  : `https://corsproxy.io/?url=${encodeURIComponent(DOTGG_ENDPOINT)}`;
 const CARD_TTL  = 24 * 60 * 60 * 1000; // 24 h
 const USER_TTL  = 30 * 60 * 1000;       // 30 min
 
