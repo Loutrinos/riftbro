@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Riftbro – Card Scanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/riftbro/scan/assets/index-Da77n3-c.js"></script>
+  <link rel="stylesheet" crossorigin href="/riftbro/scan/assets/index-ByaG9dUk.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- Header -->
+    <header class="scan-header">
+      <a href="../" class="back-link">‹ Hub</a>
+      <h1 class="scan-title">Card Scanner</h1>
+      <div class="header-controls">
+        <button id="torch-btn" class="btn-icon" title="Toggle flashlight" hidden>🔦</button>
+        <button id="debug-toggle" class="btn-icon" title="Toggle debug overlay">🔍</button>
+        <label class="sound-toggle-wrap" title="Toggle sound">
+          <span class="sound-icon">🔊</span>
+          <input type="checkbox" id="sound-toggle">
+        </label>
+      </div>
+    </header>
+
+    <!-- Permission gate — shown until user taps to start camera -->
+    <div id="cam-gate" class="cam-gate">
+      <div class="cam-gate-icon">📷</div>
+      <p class="cam-gate-title">Camera access needed</p>
+      <p class="cam-gate-sub">Tap the button below to allow camera access. Your browser will ask for permission.</p>
+      <button id="start-cam-btn" class="btn btn-primary btn-lg">Enable Camera</button>
+      <p id="cam-gate-status" class="cam-gate-loading" hidden>Loading OCR engine…</p>
+    </div>
+
+    <!-- Camera view -->
+    <div id="cam-view" class="cam-wrap" hidden>
+      <video id="camera-feed" playsinline muted autoplay></video>
+      <div id="guide-frame" class="guide-frame">
+        <span class="guide-corner tl"></span>
+        <span class="guide-corner tr"></span>
+        <span class="guide-corner bl"></span>
+        <span class="guide-corner br"></span>
+        <div class="guide-hint">Align card number here ↓</div>
+      </div>
+      <div id="status" class="status">Initializing…</div>
+      <!-- Manual scan button -->
+      <button id="scan-btn" class="scan-btn" hidden>
+        <span class="scan-btn-ring"></span>
+        Scan Card
+      </button>
+      <!-- Debug overlay: hidden by default, toggled via 🔍 button -->
+      <div id="debug-overlay" class="debug-overlay" hidden>
+        <canvas id="debug-canvas" class="debug-canvas"></canvas>
+        <div id="debug-text" class="debug-text"></div>
+      </div>
+    </div>
+
+    <!-- Camera error -->
+    <div id="cam-error" class="cam-error" hidden>
+      <div class="cam-error-icon">🚫</div>
+      <p id="cam-error-msg" class="cam-error-msg">Camera unavailable.</p>
+      <p id="cam-error-sub" class="cam-error-sub"></p>
+      <div class="cam-error-actions">
+        <button id="retry-btn" class="btn btn-primary">Try Again</button>
+      </div>
+    </div>
+
+    <!-- Hidden canvas used for OCR frame capture -->
+    <canvas id="ocr-canvas" hidden></canvas>
+
+    <!-- Scan list drawer -->
+    <div id="scan-drawer" class="scan-drawer">
+      <div id="drawer-header" class="drawer-header">
+        <div class="drawer-title-wrap">
+          <span id="drawer-chevron" class="drawer-chevron">⌃</span>
+          <span class="drawer-title">Scanned <span id="scan-count" class="scan-count"></span></span>
+        </div>
+        <div class="drawer-actions" id="drawer-actions">
+          <label class="btn btn-secondary" for="csv-upload" title="Load your collection CSV from riftbound.gg">
+            Load CSV
+          </label>
+          <input id="csv-upload" type="file" accept=".csv" hidden>
+          <button id="export-btn" class="btn btn-primary" disabled>Update &amp; Export</button>
+          <button id="clear-btn" class="btn btn-danger" title="Clear all scanned cards">✕</button>
+        </div>
+      </div>
+      <div id="csv-badge" class="csv-badge" hidden></div>
+      <div id="scan-empty" class="scan-empty">Point the camera at a card to start scanning.</div>
+      <div id="scan-list" class="scan-list"></div>
+    </div>
+
+  </div>
+</body>
+</html>
