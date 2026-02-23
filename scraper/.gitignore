@@ -1,0 +1,4 @@
+node_modules/
+prices.json
+card-urls.json
+catalog-cache.json
