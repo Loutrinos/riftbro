@@ -1,0 +1,18 @@
+{
+  "name": "riftbro-scan",
+  "version": "1.0.0",
+  "description": "Riftbound card scanner",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "tesseract.js": "^5.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.1.4",
+    "vite": "^7.3.1"
+  }
+}

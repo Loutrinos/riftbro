@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Dev: Hub (5172)",
+      "type": "shell",
+      "command": "node_modules\\.bin\\vite.cmd",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: App (5173)",
+      "type": "shell",
+      "command": "node_modules\\.bin\\vite.cmd",
+      "options": { "cwd": "${workspaceFolder}\\app" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: Give (5174)",
+      "type": "shell",
+      "command": "node_modules\\.bin\\vite.cmd",
+      "options": { "cwd": "${workspaceFolder}\\give" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: Match (5175)",
+      "type": "shell",
+      "command": "node_modules\\.bin\\vite.cmd",
+      "options": { "cwd": "${workspaceFolder}\\match" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: Scan (5176)",
+      "type": "shell",
+      "command": "node_modules\\.bin\\vite.cmd",
+      "options": { "cwd": "${workspaceFolder}\\scan" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: All Apps",
+      "dependsOn": [
+        "Dev: Hub (5172)",
+        "Dev: App (5173)",
+        "Dev: Give (5174)",
+        "Dev: Match (5175)",
+        "Dev: Scan (5176)"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,539 @@
+/* ── Riftbro Card Scanner ────────────────────────────────────────────────── */
+:root {
+  --bg:           #07070f;
+  --surface:      #111120;
+  --surface2:     #1a1a30;
+  --border:       #252538;
+  --accent:       #c8a951;
+  --accent2:      #f0d070;
+  --text:         #e8e0cc;
+  --text-muted:   #7070a0;
+  --danger:       #e05555;
+  --success:      #4caf82;
+  --radius:       14px;
+  --header-h:     52px;
+  --drawer-bar-h: 48px;
+  --drawer-h:     45vh;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+/* Ensure the hidden attribute always wins over any display: flex rules */
+[hidden] { display: none !important; }
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.scan-header {
+  flex: 0 0 var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+
+.back-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.back-link:hover { background: rgba(200,169,81,0.12); }
+
+.scan-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+
+.sound-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.4rem;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.sound-toggle-wrap:hover { background: rgba(255,255,255,0.05); }
+.sound-toggle-wrap input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 8px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.btn-icon:hover { background: rgba(255,255,255,0.07); }
+.btn-icon.active { background: rgba(200,169,81,0.15); }
+
+/* ── Camera ─────────────────────────────────────────────────────────────────── */
+.cam-wrap {
+  flex: 1 1 0;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  min-height: 0;
+}
+
+#camera-feed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Guide Frame ─────────────────────────────────────────────────────────────── */
+.guide-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* wide enough to hold a physical card comfortably */
+  width: min(78vw, 280px);
+  /* card aspect ratio ≈ 63:88 */
+  aspect-ratio: 63 / 88;
+  border-radius: 6px;
+  pointer-events: none;
+  transition: box-shadow 0.2s;
+}
+
+/* Animated corner brackets */
+.guide-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: var(--accent);
+  border-style: solid;
+  opacity: 0.9;
+}
+.guide-corner.tl { top: 0; left: 0;  border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+.guide-corner.tr { top: 0; right: 0; border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
+.guide-corner.bl { bottom: 0; left: 0;  border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
+.guide-corner.br { bottom: 0; right: 0; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
+/* Flash green on card confirmed */
+.guide-frame.confirmed .guide-corner {
+  border-color: var(--success);
+  animation: guide-flash 0.55s ease-out forwards;
+}
+@keyframes guide-flash {
+  0%   { opacity: 1; border-color: var(--success); }
+  60%  { opacity: 1; border-color: var(--success); }
+  100% { opacity: 0.9; border-color: var(--accent); }
+}
+
+.guide-hint {
+  position: absolute;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: rgba(200,169,81,0.7);
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+/* ── Manual scan button ─────────────────────────────────────────────────────────── */
+.scan-btn {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(200,169,81,0.18);
+  border: 2px solid var(--accent);
+  color: var(--accent2);
+  font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.65rem 2rem;
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s, transform 0.1s;
+  z-index: 10;
+  white-space: nowrap;
+}
+.scan-btn:hover  { background: rgba(200,169,81,0.28); }
+.scan-btn:active { transform: translateX(-50%) scale(0.95); }
+.scan-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.scan-btn.scanning {
+  background: rgba(200,169,81,0.10);
+  border-color: rgba(200,169,81,0.5);
+  color: rgba(200,169,81,0.7);
+  letter-spacing: 0.12em;
+}
+
+.scan-btn-ring {
+  display: none; /* placeholder for future pulse animation */
+}
+
+/* ── Debug overlay ─────────────────────────────────────────────────────────────── */
+.debug-overlay {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 20;
+}
+.debug-canvas {
+  width: 140px;
+  height: auto;
+  border: 1px solid rgba(200,169,81,0.5);
+  border-radius: 4px;
+  background: #000;
+}
+.debug-text {
+  background: rgba(0,0,0,0.72);
+  color: #f0d070;
+  font-size: 0.6rem;
+  font-family: monospace;
+  padding: 3px 6px;
+  border-radius: 4px;
+  max-width: 180px;
+  word-break: break-all;
+  white-space: pre-wrap;
+  line-height: 1.4;
+  border: 1px solid rgba(200,169,81,0.3);
+}
+
+/* ── Status pill ─────────────────────────────────────────────────────────────── */
+.status {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.6);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  transition: color 0.2s, border-color 0.2s;
+}
+.status.detecting { color: var(--accent2); border-color: var(--accent); }
+.status.success   { color: var(--success);  border-color: var(--success); }
+
+/* ── Permission gate ─────────────────────────────────────────────────────────── */
+.cam-gate {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  min-height: 0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(200,169,81,0.06) 0%, transparent 60%);
+}
+.cam-gate-icon  { font-size: 3rem; }
+.cam-gate-title { font-family: 'Cinzel', serif; font-size: 1.05rem; color: var(--accent); }
+.cam-gate-sub   { color: var(--text-muted); font-size: 0.82rem; max-width: 280px; line-height: 1.55; }
+.cam-gate-loading { color: var(--text-muted); font-size: 0.78rem; margin-top: 0.5rem; }
+
+.btn-lg {
+  font-size: 0.9rem;
+  padding: 0.7rem 1.6rem;
+  border-radius: 10px;
+  margin-top: 0.4rem;
+}
+
+/* ── Camera error ────────────────────────────────────────────────────────────── */
+.cam-error {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  min-height: 0;
+}
+.cam-error-icon    { font-size: 2.5rem; }
+.cam-error-msg     { color: var(--danger); font-weight: 600; font-size: 0.9rem; }
+.cam-error-sub     { color: var(--text-muted); font-size: 0.78rem; max-width: 300px; line-height: 1.55; }
+.cam-error-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; margin-top: 0.4rem; }
+
+/* ── Scan Drawer ─────────────────────────────────────────────────────────────── */
+.scan-drawer {
+  flex: 0 0 auto;
+  height: var(--drawer-bar-h);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-top: 2px solid var(--border);
+  overflow: hidden;
+  transition: height 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.scan-drawer.expanded {
+  height: var(--drawer-h);
+}
+
+.drawer-header {
+  flex: 0 0 var(--drawer-bar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.drawer-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.scan-count {
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+.drawer-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.drawer-chevron {
+  font-size: 0.85rem;
+  color: var(--accent);
+  display: inline-block;
+  transform: rotate(180deg);
+  transition: transform 0.25s ease;
+  line-height: 1;
+}
+.scan-drawer.expanded .drawer-chevron {
+  transform: rotate(0deg);
+}
+
+.drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+.btn {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #07070f;
+  border-color: var(--accent);
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent2); border-color: var(--accent2); }
+
+.btn-secondary {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-secondary:hover { background: #222240; }
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: rgba(224,85,85,0.35);
+  padding: 0.35rem 0.6rem;
+}
+.btn-danger:hover { background: rgba(224,85,85,0.1); }
+
+/* ── CSV badge ───────────────────────────────────────────────────────────────── */
+.csv-badge {
+  padding: 0.3rem 0.85rem;
+  font-size: 0.7rem;
+  color: var(--success);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Scan empty state ────────────────────────────────────────────────────────── */
+.scan-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* ── Scan list scroll container ──────────────────────────────────────────────── */
+.scan-list {
+  flex: 1 1 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.4rem 0.4rem 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* ── Scan item card ──────────────────────────────────────────────────────────── */
+.scan-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.4rem 0.5rem;
+  animation: slide-in 0.2s ease-out;
+}
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.scan-item-img {
+  width: 36px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.scan-item-info {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.scan-item-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scan-item-id {
+  font-size: 0.68rem;
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.scan-item-set {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/* ── Quantity control ────────────────────────────────────────────────────────── */
+.scan-item-qty {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.qty-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.12s;
+}
+.qty-btn:hover { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+
+.qty-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent2);
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ── Remove button ───────────────────────────────────────────────────────────── */
+.remove-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.25rem 0.35rem;
+  border-radius: 5px;
+  transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+.remove-btn:hover { color: var(--danger); background: rgba(224,85,85,0.1); }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────────── */
+.scan-list::-webkit-scrollbar { width: 4px; }
+.scan-list::-webkit-scrollbar-track { background: transparent; }
+.scan-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
