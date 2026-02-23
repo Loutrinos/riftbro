@@ -1,4 +1,5 @@
 import { createWorker } from 'tesseract.js';
+import { getCardCatalog } from '../../shared/cardCatalog.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -13,13 +14,6 @@ const SET_NAMES = {
 
 // Mirror of app/main.js normId: 'ogn-001-298' → 'OGN-001'
 const normId = id => id ? id.split('-').slice(0, 2).join('-').toUpperCase() : id;
-
-// Episode slug → set code (for riftboundindex.com API fallback)
-const SLUG_TO_CODE = {
-  'origins':         'OGN',
-  'spiritforged':    'SFD',
-  'proving-grounds': 'OGS',
-};
 
 const CONFIRM_FRAMES = 2;     // consecutive matching OCR reads before confirming
 const COOLDOWN_MS    = 2000;  // pause between scans (ms)
@@ -143,71 +137,33 @@ const textTokens = str => [...new Set(
 )];
 
 // ── Load full card catalog ────────────────────────────────────────────────────
-// Reuses the same localStorage cache the main app populates (rb_cards).
-// Falls back to fetching directly from riftboundindex.com if not populated yet.
+// Reads from the shared localStorage cache (rb_cards) populated by getCardCatalog.
+// Only hits the network when the cache is missing or older than 24 h.
 async function loadCardCatalog() {
-  // Path 1: use cache from main app (rb_cards in localStorage)
-  const raw = localStorage.getItem('rb_cards');
-  if (raw) {
-    try {
-      const cards = JSON.parse(raw);
-      if (Array.isArray(cards) && cards.length > 0) {
-        // Debug: log first card so we can see the exact structure
-        console.log('[scan] rb_cards first card sample:', JSON.stringify(cards[0]));
-
-        for (const card of cards) {
-          // Firebase doc ID is like 'ogn-001-298' — drop the last segment
-          const key = normId(card.id);
-
-          // The name field may be 'name' or nested — try both
-          const name = card.name ?? card.card_name ?? card.data?.name ?? null;
-
-          if (key && key.includes('-') && name && !state.cardNameMap[key]) {
-            state.cardNameMap[key] = {
-              name,
-              set: card.set?.value?.label ?? SET_NAMES[key.split('-')[0]] ?? key.split('-')[0],
-              tokens: textTokens((card.cardImage?.accessibilityText ?? '') + ' ' + name),
-            };
-          }
-        }
-        const count = Object.keys(state.cardNameMap).length;
-        console.log(`[scan] Catalog from cache: ${count} / ${cards.length} cards mapped`);
-        if (count > 0) return;
-        // If 0 mapped, fall through to API (cache format might differ)
-        console.warn('[scan] Cache produced 0 matches — trying API fallback');
-      }
-    } catch (e) {
-      console.warn('[scan] Failed to parse rb_cards:', e.message);
-    }
-  } else {
-    console.log('[scan] No rb_cards in localStorage — fetching from API');
-  }
-
-  // Path 2: fetch from riftboundindex.com API
+  let cards;
   try {
-    const res  = await fetch('https://riftboundindex.com/api/cards?pageSize=10000');
-    const data = await res.json();
-    const cards = data.cards ?? (Array.isArray(data) ? data : []);
-    console.log(`[scan] API returned ${cards.length} cards. First:`, JSON.stringify(cards[0]));
-
-    for (const card of cards) {
-      // Same format as rb_cards: id = 'ogn-001-298', name, set.value.id / set.value.label
-      const key  = normId(card.id);
-      const name = card.name ?? null;
-      if (!key || !key.includes('-') || !name) continue;
-
-      if (!state.cardNameMap[key]) {
-        state.cardNameMap[key] = {
-          name,
-          set: card.set?.value?.label ?? SET_NAMES[key.split('-')[0]] ?? key.split('-')[0],
-          tokens: textTokens((card.cardImage?.accessibilityText ?? '') + ' ' + name),
-        };
-      }
-    }
-    console.log(`[scan] Catalog from API: ${Object.keys(state.cardNameMap).length} cards`);
+    cards = await getCardCatalog();
   } catch (err) {
-    console.warn('[scan] Could not load card catalog from API:', err.message);
+    console.warn('[scan] Could not load card catalog:', err.message);
+    return;
   }
+
+  console.log('[scan] Catalog: first card sample:', JSON.stringify(cards[0]));
+
+  for (const card of cards) {
+    const key  = normId(card.id);
+    const name = card.name ?? card.card_name ?? card.data?.name ?? null;
+
+    if (key && key.includes('-') && name && !state.cardNameMap[key]) {
+      state.cardNameMap[key] = {
+        name,
+        set:    card.set?.value?.label ?? SET_NAMES[key.split('-')[0]] ?? key.split('-')[0],
+        tokens: textTokens((card.cardImage?.accessibilityText ?? '') + ' ' + name),
+      };
+    }
+  }
+
+  console.log(`[scan] Catalog: ${Object.keys(state.cardNameMap).length} / ${cards.length} cards mapped`);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -1,15 +1,11 @@
-﻿// main.js â€” Collection Dashboard (no auth required)
+﻿// main.js — Collection Dashboard (no auth required)
 import m from 'https://esm.sh/mithril@2.2.2';
-import { db } from './firebase.js';
-import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+import { getCardCatalog } from '../shared/cardCatalog.js';
 
 // -- Constants --
 const DOTGG_ENDPOINT = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
-const DOTGG_API = import.meta.env.DEV
-  ? '/api/dotgg/cgfw/getuserdata?game=riftbound'
-  : `https://corsproxy.io/?url=${encodeURIComponent(DOTGG_ENDPOINT)}`;
-const CARD_TTL  = 24 * 60 * 60 * 1000; // 24 h
-const USER_TTL  = 30 * 60 * 1000;       // 30 min
+const DOTGG_API = `https://corsproxy.io/?url=${encodeURIComponent(DOTGG_ENDPOINT)}`;
+const USER_TTL = 30 * 60 * 1000; // 30 min
 
 const SETS = [
   { id: 'OGN', label: 'Origins',         code: 'OGN' },
@@ -94,16 +90,7 @@ function clearFilters() {
 
 // -- Data loading --
 async function loadCards() {
-  const raw = localStorage.getItem('rb_cards');
-  const ts  = localStorage.getItem('rb_cards_ts');
-  if (raw && ts && Date.now() - +ts < CARD_TTL) {
-    state.cards = JSON.parse(raw);
-    return;
-  }
-  const snap = await getDocs(collection(db, 'cards'));
-  state.cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  localStorage.setItem('rb_cards', JSON.stringify(state.cards));
-  localStorage.setItem('rb_cards_ts', String(Date.now()));
+  state.cards = await getCardCatalog();
 }
 
 async function loadUserCollection(username, bust = false) {
