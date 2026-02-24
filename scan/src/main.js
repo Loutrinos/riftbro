@@ -29,7 +29,6 @@ const state = {
   consecutiveHits:   0,
   lastHitId:         null,
   scanList:          JSON.parse(localStorage.getItem('rb-scan-list') || '[]'),
-  csvRows:           null,      // parsed CSV rows from the user's riftbound.gg export (for merging)
   cardNameMap:       {},        // { 'OGN-001': { name, set } } — built from full card catalog
   soundEnabled:      JSON.parse(localStorage.getItem('rb-scan-sound') ?? 'true'),
   debugVisible:      false,
@@ -57,8 +56,6 @@ const el = {
   scanList:       $('scan-list'),
   scanEmpty:      $('scan-empty'),
   scanCount:      $('scan-count'),
-  csvUpload:      $('csv-upload'),
-  csvBadge:       $('csv-badge'),
   exportBtn:      $('export-btn'),
   clearBtn:       $('clear-btn'),
   soundToggle:    $('sound-toggle'),
@@ -573,68 +570,22 @@ async function startCamera() {
   }
 }
 
-// ── CSV parsing ───────────────────────────────────────────────────────────────
-function parseCSV(text) {
-  const lines  = text.trim().split(/\r?\n/);
-  const header = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-  const rows   = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const cols = [];
-    let inQ = false, cur = '';
-    for (const ch of lines[i] + ',') {
-      if (ch === '"') { inQ = !inQ; }
-      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
-      else { cur += ch; }
-    }
-    if (cols.length < 2) continue;
-    const row = {};
-    header.forEach((h, idx) => row[h] = cols[idx] ?? '');
-    rows.push(row);
-
-    // Build name map for scan display
-    const cid = row['CardId']?.toUpperCase();
-    if (cid) state.cardNameMap[cid] = { name: row['Name'], set: row['Set'] };
-  }
-  return rows;
-}
-
-// ── CSV merge + export ────────────────────────────────────────────────────────
-function buildCSVString(rows) {
-  const header = 'CardId,Normal,Foil,Name,Set';
-  const body   = rows.map(r =>
-    `"${r.CardId}",${r.Normal},${r.Foil},"${r.Name}","${r.Set}"`
-  ).join('\n');
-  return `${header}\n${body}`;
-}
-
+// ── CSV export ───────────────────────────────────────────────────────────────
 function exportCSV() {
-  // Clone existing CSV rows (or start fresh)
-  const rows = (state.csvRows ?? []).map(r => ({ ...r }));
+  const header = 'CardId,Normal,Foil,Name,Set';
+  const body   = state.scanList.map(item => {
+    const info = state.cardNameMap[item.id] ?? {};
+    const name = (info.name ?? item.name ?? item.id).replace(/"/g, '""');
+    const set  = (info.set  ?? item.set  ?? setFromId(item.id)).replace(/"/g, '""');
+    return `"${item.id}",${item.qty},0,"${name}","${set}"`;
+  }).join('\n');
 
-  for (const item of state.scanList) {
-    const existing = rows.find(r => r.CardId?.toUpperCase() === item.id);
-    if (existing) {
-      existing.Normal = String(Number(existing.Normal || 0) + item.qty);
-    } else {
-      // New card not yet in the collection
-      const info = state.cardNameMap[item.id] ?? {};
-      rows.push({
-        CardId: item.id,
-        Normal: String(item.qty),
-        Foil:   '0',
-        Name:   info.name ?? item.id,
-        Set:    info.set  ?? setFromId(item.id),
-      });
-    }
-  }
-
-  const csv  = buildCSVString(rows);
+  const csv  = `${header}\n${body}`;
   const blob = new Blob([csv], { type: 'text/csv' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `collection-updated-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `scanned-cards-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -683,22 +634,6 @@ function wireEvents() {
     }
     save();
     render();
-  });
-
-  // CSV file upload (only needed for collection merge/export — names come from catalog)
-  el.csvUpload.addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      state.csvRows = parseCSV(ev.target.result);
-      save();
-      render();
-
-      el.csvBadge.textContent = `✓ Collection CSV loaded: ${file.name} (${state.csvRows.length} rows) — ready to merge`;
-      el.csvBadge.hidden = false;
-    };
-    reader.readAsText(file);
   });
 
   // Export button
