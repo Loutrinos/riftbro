@@ -157,8 +157,9 @@ async function loadCardCatalog() {
     if (key && key.includes('-') && name && !state.cardNameMap[key]) {
       state.cardNameMap[key] = {
         name,
-        set:    card.set?.value?.label ?? SET_NAMES[key.split('-')[0]] ?? key.split('-')[0],
-        tokens: textTokens((card.cardImage?.accessibilityText ?? '') + ' ' + name),
+        set:      card.set?.value?.label ?? SET_NAMES[key.split('-')[0]] ?? key.split('-')[0],
+        foilOnly: card.rarity?.value?.id === 'overnumbered',
+        tokens:   textTokens((card.cardImage?.accessibilityText ?? '') + ' ' + name),
       };
     }
   }
@@ -183,14 +184,14 @@ function render() {
   el.scanCount.textContent = total > 0 ? `· ${total} card${total !== 1 ? 's' : ''}` : '';
 
   el.scanList.innerHTML = list.map((item, i) => `
-    <div class="scan-item">
+    <div class="scan-item${item.foilOnly ? ' foil-only' : ''}">
       <img class="scan-item-img"
            src="${cardImg(item.id)}"
            alt="${item.id}"
            loading="lazy"
            onerror="this.style.opacity='0.3'">
       <div class="scan-item-info">
-        <div class="scan-item-name">${item.name ?? item.id}</div>
+        <div class="scan-item-name">${item.name ?? item.id}${item.foilOnly ? ' <span class="foil-badge">✨ Foil only</span>' : ''}</div>
         <div class="scan-item-id">${item.id}</div>
         <div class="scan-item-set">${item.set}</div>
       </div>
@@ -213,9 +214,10 @@ function addCard(id) {
     const info = state.cardNameMap[id] ?? {};
     state.scanList.unshift({
       id,
-      name: info.name ?? null,
-      set:  info.set  ?? setFromId(id),
-      qty:  1,
+      name:     info.name     ?? null,
+      set:      info.set      ?? setFromId(id),
+      foilOnly: info.foilOnly ?? false,
+      qty:      1,
     });
   }
   save();
@@ -615,14 +617,18 @@ function exportCSV() {
   for (const item of state.scanList) {
     const existing = rows.find(r => r.CardId?.toUpperCase() === item.id);
     if (existing) {
-      existing.Normal = String(Number(existing.Normal || 0) + item.qty);
+      if (item.foilOnly) {
+        existing.Foil   = String(Number(existing.Foil   || 0) + item.qty);
+      } else {
+        existing.Normal = String(Number(existing.Normal || 0) + item.qty);
+      }
     } else {
       // New card not yet in the collection
       const info = state.cardNameMap[item.id] ?? {};
       rows.push({
         CardId: item.id,
-        Normal: String(item.qty),
-        Foil:   '0',
+        Normal: item.foilOnly ? '0'           : String(item.qty),
+        Foil:   item.foilOnly ? String(item.qty) : '0',
         Name:   info.name ?? item.id,
         Set:    info.set  ?? setFromId(item.id),
       });

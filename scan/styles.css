@@ -486,6 +486,25 @@ html, body, #app {
   color: var(--text-muted);
 }
 
+.foil-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #f0c060;
+  background: rgba(240, 192, 96, 0.15);
+  border: 1px solid rgba(240, 192, 96, 0.35);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.scan-item.foil-only {
+  border-left: 3px solid #f0c060;
+}
+
 /* ── Quantity control ────────────────────────────────────────────────────────── */
 .scan-item-qty {
   display: flex;
