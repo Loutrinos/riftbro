@@ -1,6 +1,7 @@
 import m from 'mithril';
 import { fetchUserList } from './parser.js';
 import { compare } from './compare.js';
+import { addUser, getUsers } from '../../shared/savedUsers.js';
 
 // ── URL state sync ────────────────────────────────────────────────────────────
 function getParams() {
@@ -37,6 +38,8 @@ async function findMatches() {
   m.redraw();
 
   setParams(state.userA.trim(), state.userB.trim());
+  addUser(state.userA.trim());
+  addUser(state.userB.trim());
 
   try {
     const [dataA, dataB] = await Promise.all([
@@ -123,11 +126,16 @@ const App = {
         m('.form-section', [
           m('h2', 'Enter two riftbound.gg usernames'),
           m('.user-inputs', [
+            m('datalist', { id: 'rb-users' },
+              getUsers().map(u => m('option', { value: u }))
+            ),
+
             m('.input-group', [
               m('label', { for: 'userA' }, 'Trader (has cards to give)'),
               m('input', {
                 id: 'userA',
                 type: 'text',
+                list: 'rb-users',
                 placeholder: 'e.g. George Antonakos',
                 value: state.userA,
                 disabled: state.loading,
@@ -151,6 +159,7 @@ const App = {
               m('input', {
                 id: 'userB',
                 type: 'text',
+                list: 'rb-users',
                 placeholder: 'e.g. Kyle Grech',
                 value: state.userB,
                 disabled: state.loading,

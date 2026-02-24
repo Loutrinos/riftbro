@@ -1,4 +1,5 @@
 import m from 'mithril';
+import { addUser, getUsers } from '../../shared/savedUsers.js';
 
 // ── Legends ───────────────────────────────────────────────────────────────────
 const LEGENDS = [
@@ -122,6 +123,9 @@ function startMatch() {
   const p1 = LEGENDS.find(l => l.id === s.p1legend);
   const p2 = LEGENDS.find(l => l.id === s.p2legend);
 
+  if (s.p1name.trim()) addUser(s.p1name.trim());
+  if (s.p2name.trim()) addUser(s.p2name.trim());
+
   state.match = {
     players: [
       { name: s.p1name.trim() || 'Player 1', legendName: p1 ? p1.name : '—', champion: p1 ? p1.champion : '', imageUrl: p1 ? `https://static.dotgg.gg/riftbound/cards/${p1.imageId}.webp` : '', points: 0 },
@@ -169,10 +173,14 @@ const Setup = {
         // Players
         m('.setup-players', [
           // Player 1
+          m('datalist', { id: 'rb-users' },
+            getUsers().map(u => m('option', { value: u }))
+          ),
           m('.player-setup-card', [
             m('h3', 'Player 1'),
             m('input.setup-input', {
               type: 'text',
+              list: 'rb-users',
               placeholder: 'Player name…',
               value: s.p1name,
               oninput: e => s.p1name = e.target.value,
@@ -185,6 +193,7 @@ const Setup = {
             m('h3', 'Player 2'),
             m('input.setup-input', {
               type: 'text',
+              list: 'rb-users',
               placeholder: 'Player name…',
               value: s.p2name,
               oninput: e => s.p2name = e.target.value,

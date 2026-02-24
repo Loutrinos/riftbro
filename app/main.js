@@ -1,6 +1,7 @@
 ﻿// main.js — Collection Dashboard (no auth required)
 import m from 'https://esm.sh/mithril@2.2.2';
 import { getCardCatalog } from '../shared/cardCatalog.js';
+import { addUser, getUsers } from '../shared/savedUsers.js';
 
 // -- Constants --
 const DOTGG_ENDPOINT = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
@@ -259,16 +260,20 @@ const SetupScreen = {
           const val = state.username.trim();
           if (!val) return;
           localStorage.setItem('rb_username', val);
+          addUser(val);
           init();
         },
       }, [
         m('input.setup-input', {
+          list: 'rb-users',
           placeholder: 'riftbound.gg username',
           value: state.username,
           oninput: e => state.username = e.target.value,
-          autocomplete: 'off',
           spellcheck: false,
         }),
+        m('datalist', { id: 'rb-users' },
+          getUsers().map(u => m('option', { value: u }))
+        ),
         m('button.start-btn[type=submit]', 'View Collection'),
       ]),
       m('a.setup-home', { href: '../' }, '← Back to Hub'),
