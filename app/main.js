@@ -24,7 +24,7 @@ const RARITY_COLOR = {
 };
 
 // -- Card helpers --
-const isOvernumbered = c => c.rarity?.value?.id === 'overnumbered';
+const isOvernumbered = c => ['showcase', 'overnumbered'].includes(c.rarity?.value?.id);
 const isType = (c, t) => (c.cardType?.type || []).some(ct =>
   ct.id?.toLowerCase() === t || ct.label?.toLowerCase() === t);
 const isRune        = c => isType(c, 'rune');
