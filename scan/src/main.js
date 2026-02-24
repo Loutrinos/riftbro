@@ -158,7 +158,7 @@ async function loadCardCatalog() {
       state.cardNameMap[key] = {
         name,
         set:      card.set?.value?.label ?? SET_NAMES[key.split('-')[0]] ?? key.split('-')[0],
-        foilOnly: ['showcase', 'overnumbered'].includes(card.rarity?.value?.id),
+        foilOnly: ['epic', 'rare', 'showcase', 'overnumbered'].includes(card.rarity?.value?.id),
         tokens:   textTokens((card.cardImage?.accessibilityText ?? '') + ' ' + name),
       };
     }
