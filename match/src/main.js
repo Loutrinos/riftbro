@@ -313,10 +313,29 @@ const PlayerHalf = {
         ? `${p.legendName} · ${p.champion}`
         : p.legendName),
 
-      m('.pts-display', { key: p.animKey, class: [atTarget ? 'at-target' : '', p.animLevel].filter(Boolean).join(' ') }, pts),
+      m('.pts-display', {
+        class: atTarget ? 'at-target' : '',
+        onupdate(vnode) {
+          const el = vnode.dom;
+          if (!p.animLevel || el._lastAnimKey === p.animKey) return;
+          el._lastAnimKey = p.animKey;
+          el.classList.remove('bump-low', 'bump-mid', 'bump-high', 'bump-win');
+          void el.offsetWidth; // force reflow to restart animation
+          el.classList.add(p.animLevel);
+        },
+      }, pts),
 
-      // Per-point flash burst — keyed so it always replays on new points
-      p.animKey > 0 && m('.score-flash', { key: `flash-${p.animKey}`, class: p.animLevel }),
+      // Per-point flash burst — always rendered, animation restarted via DOM reflow
+      m('.score-flash', {
+        onupdate(vnode) {
+          const el = vnode.dom;
+          if (!p.animLevel || el._lastAnimKey === p.animKey) return;
+          el._lastAnimKey = p.animKey;
+          el.className = 'score-flash';
+          void el.offsetWidth;
+          el.className = `score-flash ${p.animLevel}`;
+        },
+      }),
 
       m('.action-btns', [
         m('button.action-btn.conquer-btn', {
