@@ -290,10 +290,11 @@ const PlayerHalf = {
       ? `background-image: linear-gradient(rgba(7,7,15,0.62), rgba(7,7,15,0.72)), url('${p.imageUrl}'); background-size: cover; background-position: center 15%;`
       : '';
 
-    // Point bar segments: index 0 = first point (top slot)
+    // Point bar segments: index 0 = first point (bottom of bar via column-reverse)
     const segments = Array.from({ length: match.target }, (_, i) => ({
       filled: i < pts,
       type: p.pointLog[i] || null,
+      isTop: i === pts - 1 && pts > 0, // liquid surface segment
     }));
 
     return m(`.player-half.${position}`, { class: isActive ? 'active-turn' : '', style: bgStyle }, [
@@ -321,13 +322,17 @@ const PlayerHalf = {
         ? m('button.undo-btn', { onclick: () => { removePoint(playerIdx); } }, '↩ Undo')
         : m('span.undo-placeholder'),
 
-      // Vertical point bar — absolutely positioned on the right edge
+      // Vertical point bar — fills from bottom to top (column-reverse)
       m('.point-bar',
-        segments.map(seg =>
-          m('.point-seg', { class: seg.filled ? `filled ${seg.type}` : 'empty' },
+        segments.map(seg => {
+          const cls = [
+            seg.filled ? `filled ${seg.type}` : 'empty',
+            seg.isTop ? 'liquid-top' : '',
+          ].join(' ').trim();
+          return m('.point-seg', { class: cls },
             seg.filled ? (seg.type === 'conquer' ? '⚔' : '🛡') : ''
-          )
-        )
+          );
+        })
       ),
 
       isWinner && m('.win-overlay', [

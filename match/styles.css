@@ -377,7 +377,7 @@ html, body, #app {
 .undo-btn:hover { color: var(--text); background: var(--surface2); }
 .undo-placeholder { display: block; height: 1.2rem; margin-top: 0.15rem; }
 
-/* Vertical point bar — right edge of each half */
+/* Vertical point bar — right edge, fills bottom-to-top like liquid */
 .point-bar {
   position: absolute;
   right: 0;
@@ -385,46 +385,67 @@ html, body, #app {
   bottom: 0;
   width: 38px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 10px 0;
+  flex-direction: column-reverse; /* index 0 renders at bottom */
   border-left: 1px solid var(--border);
-  background: rgba(7,7,15,0.35);
+  background: rgba(7,7,15,0.55);
 }
 
 .point-seg {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  flex: 1;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   line-height: 1;
-  flex-shrink: 0;
-  transition: background 0.2s, box-shadow 0.2s;
+  position: relative;
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
 
 .point-seg.empty {
-  border: 1.5px solid var(--border);
   background: transparent;
-  color: transparent;
+}
+
+/* Liquid fill animation — reveals each band from bottom upward */
+.point-seg.filled {
+  animation: liquidFill 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes liquidFill {
+  from { clip-path: inset(100% 0 0 0); }
+  to   { clip-path: inset(0% 0 0 0); }
 }
 
 .point-seg.filled.conquer {
-  background: rgba(200,169,81,0.18);
-  border: 1.5px solid var(--accent);
-  box-shadow: 0 0 6px rgba(200,169,81,0.35);
-  color: var(--accent);
+  background: rgba(200,169,81,0.42);
+  border-top: 1px solid rgba(200,169,81,0.55);
+  color: rgba(220,185,90,0.95);
 }
 
 .point-seg.filled.hold {
-  background: rgba(80,140,220,0.18);
-  border: 1.5px solid #5098e0;
-  box-shadow: 0 0 6px rgba(80,140,220,0.3);
-  color: #90c0f8;
+  background: rgba(70,130,210,0.42);
+  border-top: 1px solid rgba(80,140,220,0.55);
+  color: rgba(140,190,255,0.95);
+}
+
+/* Liquid meniscus — a bobbing dome on the topmost filled segment */
+.point-seg.filled.liquid-top::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: inherit;
+  animation: liquidBob 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes liquidBob {
+  0%, 100% { transform: translateY(0)   scaleX(1);    opacity: 0.9; }
+  40%       { transform: translateY(-2px) scaleX(1.06); opacity: 1; }
+  70%       { transform: translateY(1px)  scaleX(0.97); opacity: 0.85; }
 }
 
 
