@@ -308,53 +308,125 @@ html, body, #app {
   text-align: center;
 }
 
-/* Points counter */
-.points-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
-
-.pts-counter-btn {
-  width: clamp(48px, 13vw, 64px);
-  height: clamp(48px, 13vw, 64px);
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 1.5rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
-  user-select: none;
-}
-
-.pts-counter-btn:active { transform: scale(0.9); background: var(--surface2); }
-.pts-counter-btn.minus:active { border-color: var(--danger); }
-.pts-counter-btn.plus:active  { border-color: var(--success); }
-
+/* Score display */
 .pts-display {
   font-family: 'Cinzel', serif;
-  font-size: clamp(2.8rem, 12vw, 5rem);
+  font-size: clamp(2.4rem, 10vw, 4.2rem);
   font-weight: 700;
   color: var(--text);
-  min-width: clamp(60px, 16vw, 90px);
+  min-width: clamp(52px, 14vw, 80px);
   text-align: center;
   line-height: 1;
   transition: color 0.3s;
+  margin-top: 0.15rem;
 }
 
 .pts-display.at-target { color: var(--accent2); text-shadow: 0 0 20px var(--accent); }
 
-.pts-target {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  letter-spacing: 0.08em;
-  text-align: center;
+/* Action buttons — Conquer & Hold */
+.action-btns {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
 }
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  user-select: none;
+  min-width: clamp(70px, 18vw, 100px);
+}
+
+.action-btn:active:not(:disabled) { transform: scale(0.93); }
+.action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.conquer-btn { border-color: rgba(200,169,81,0.45); }
+.conquer-btn:active:not(:disabled) { background: rgba(200,169,81,0.12); border-color: var(--accent); }
+
+.hold-btn { border-color: rgba(80,140,220,0.45); }
+.hold-btn:active:not(:disabled) { background: rgba(80,140,220,0.12); border-color: #5098e0; }
+
+.action-icon { font-size: 1.25rem; line-height: 1; }
+.action-label { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+
+/* Undo button */
+.undo-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  margin-top: 0.15rem;
+  font-family: inherit;
+}
+.undo-btn:hover { color: var(--text); background: var(--surface2); }
+.undo-placeholder { display: block; height: 1.2rem; margin-top: 0.15rem; }
+
+/* Vertical point bar — right edge of each half */
+.point-bar {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 0;
+  border-left: 1px solid var(--border);
+  background: rgba(7,7,15,0.35);
+}
+
+.point-seg {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.point-seg.empty {
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: transparent;
+}
+
+.point-seg.filled.conquer {
+  background: rgba(200,169,81,0.18);
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 6px rgba(200,169,81,0.35);
+  color: var(--accent);
+}
+
+.point-seg.filled.hold {
+  background: rgba(80,140,220,0.18);
+  border: 1.5px solid #5098e0;
+  box-shadow: 0 0 6px rgba(80,140,220,0.3);
+  color: #90c0f8;
+}
+
 
 /* Win overlay */
 .win-overlay {

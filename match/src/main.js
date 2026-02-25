@@ -1,6 +1,21 @@
 import m from 'mithril';
 import { addUser, getUsers } from '../../shared/savedUsers.js';
 
+// ── Wake Lock ─────────────────────────────────────────────────────────────────
+let wakeLock = null;
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try { wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.phase === 'match' && state.match.winner === null) {
+    acquireWakeLock();
+  }
+});
+
 // ── Legends ───────────────────────────────────────────────────────────────────
 const LEGENDS = [
   // Origins
@@ -55,8 +70,8 @@ const state = {
   // Match state
   match: {
     players: [
-      { name: '', legendName: '', champion: '', points: 0 },
-      { name: '', legendName: '', champion: '', points: 0 },
+      { name: '', legendName: '', champion: '', pointLog: [] },
+      { name: '', legendName: '', champion: '', pointLog: [] },
     ],
     target: 8,
     activeTurn: 1,           // 0 = top (P1), 1 = bottom (P2)
@@ -99,14 +114,21 @@ function formatTime(secs) {
 }
 
 // ── Match actions ─────────────────────────────────────────────────────────────
-function changePoints(playerIdx, delta) {
+function addPoint(playerIdx, type) {
   if (state.match.winner !== null) return;
   const p = state.match.players[playerIdx];
-  p.points = Math.max(0, p.points + delta);
-  if (p.points >= state.match.target) {
+  p.pointLog.push(type);
+  if (p.pointLog.length >= state.match.target) {
     state.match.winner = playerIdx;
     stopTimer();
+    releaseWakeLock();
   }
+}
+
+function removePoint(playerIdx) {
+  if (state.match.winner !== null) return;
+  const p = state.match.players[playerIdx];
+  if (p.pointLog.length > 0) p.pointLog.pop();
 }
 
 function endTurn() {
@@ -128,8 +150,8 @@ function startMatch() {
 
   state.match = {
     players: [
-      { name: s.p1name.trim() || 'Player 1', legendName: p1 ? p1.name : '—', champion: p1 ? p1.champion : '', imageUrl: p1 ? `https://static.dotgg.gg/riftbound/cards/${p1.imageId}.webp` : '', points: 0 },
-      { name: s.p2name.trim() || 'Player 2', legendName: p2 ? p2.name : '—', champion: p2 ? p2.champion : '', imageUrl: p2 ? `https://static.dotgg.gg/riftbound/cards/${p2.imageId}.webp` : '', points: 0 },
+      { name: s.p1name.trim() || 'Player 1', legendName: p1 ? p1.name : '—', champion: p1 ? p1.champion : '', imageUrl: p1 ? `https://static.dotgg.gg/riftbound/cards/${p1.imageId}.webp` : '', pointLog: [] },
+      { name: s.p2name.trim() || 'Player 2', legendName: p2 ? p2.name : '—', champion: p2 ? p2.champion : '', imageUrl: p2 ? `https://static.dotgg.gg/riftbound/cards/${p2.imageId}.webp` : '', pointLog: [] },
     ],
     target: s.target,
     activeTurn: s.firstPlayer ?? 0,
@@ -139,10 +161,12 @@ function startMatch() {
     timerInterval: null,
   };
   state.phase = 'match';
+  acquireWakeLock();
 }
 
 function resetToSetup() {
   stopTimer();
+  releaseWakeLock();
   state.phase = 'setup';
 }
 
@@ -257,13 +281,20 @@ const PlayerHalf = {
   view({ attrs: { playerIdx, position } }) {
     const match = state.match;
     const p = match.players[playerIdx];
+    const pts = p.pointLog.length;
     const isActive = match.activeTurn === playerIdx;
     const isWinner = match.winner === playerIdx;
-    const atTarget = p.points >= match.target;
+    const atTarget = pts >= match.target;
 
     const bgStyle = p.imageUrl
       ? `background-image: linear-gradient(rgba(7,7,15,0.62), rgba(7,7,15,0.72)), url('${p.imageUrl}'); background-size: cover; background-position: center 15%;`
       : '';
+
+    // Point bar segments: index 0 = first point (top slot)
+    const segments = Array.from({ length: match.target }, (_, i) => ({
+      filled: i < pts,
+      type: p.pointLog[i] || null,
+    }));
 
     return m(`.player-half.${position}`, { class: isActive ? 'active-turn' : '', style: bgStyle }, [
       m('.turn-pip'),
@@ -273,23 +304,35 @@ const PlayerHalf = {
         ? `${p.legendName} · ${p.champion}`
         : p.legendName),
 
-      m('.points-row', [
-        m('button.pts-counter-btn.minus', {
-          onclick: () => { changePoints(playerIdx, -1); },
-          disabled: p.points <= 0 || match.winner !== null,
-        }, '−'),
-        m('.pts-display', { class: atTarget ? 'at-target' : '' }, p.points),
-        m('button.pts-counter-btn.plus', {
-          onclick: () => { changePoints(playerIdx, 1); },
+      m('.pts-display', { class: atTarget ? 'at-target' : '' }, pts),
+
+      m('.action-btns', [
+        m('button.action-btn.conquer-btn', {
+          onclick: () => { addPoint(playerIdx, 'conquer'); },
           disabled: match.winner !== null,
-        }, '+'),
+        }, [m('span.action-icon', '⚔'), m('span.action-label', 'Conquer')]),
+        m('button.action-btn.hold-btn', {
+          onclick: () => { addPoint(playerIdx, 'hold'); },
+          disabled: match.winner !== null,
+        }, [m('span.action-icon', '🛡'), m('span.action-label', 'Hold')]),
       ]),
 
-      m('.pts-target', `First to ${match.target}`),
+      pts > 0 && match.winner === null
+        ? m('button.undo-btn', { onclick: () => { removePoint(playerIdx); } }, '↩ Undo')
+        : m('span.undo-placeholder'),
+
+      // Vertical point bar — absolutely positioned on the right edge
+      m('.point-bar',
+        segments.map(seg =>
+          m('.point-seg', { class: seg.filled ? `filled ${seg.type}` : 'empty' },
+            seg.filled ? (seg.type === 'conquer' ? '⚔' : '🛡') : ''
+          )
+        )
+      ),
 
       isWinner && m('.win-overlay', [
         m('.win-label', `🏆 ${p.name} wins!`),
-        m('.win-sub', `${p.points} points · ${formatTime(3600 - match.timerSeconds)} played`),
+        m('.win-sub', `${pts} points · ${formatTime(3600 - match.timerSeconds)} played`),
       ]),
     ]);
   },
