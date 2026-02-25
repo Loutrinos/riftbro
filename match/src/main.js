@@ -70,8 +70,8 @@ const state = {
   // Match state
   match: {
     players: [
-      { name: '', legendName: '', champion: '', pointLog: [] },
-      { name: '', legendName: '', champion: '', pointLog: [] },
+      { name: '', legendName: '', champion: '', pointLog: [], animKey: 0, animLevel: '' },
+      { name: '', legendName: '', champion: '', pointLog: [], animKey: 0, animLevel: '' },
     ],
     target: 8,
     activeTurn: 1,           // 0 = top (P1), 1 = bottom (P2)
@@ -118,7 +118,15 @@ function addPoint(playerIdx, type) {
   if (state.match.winner !== null) return;
   const p = state.match.players[playerIdx];
   p.pointLog.push(type);
-  if (p.pointLog.length >= state.match.target) {
+  const pts = p.pointLog.length;
+  const tgt = state.match.target;
+  // Determine animation intensity tier
+  if (pts >= tgt)           p.animLevel = 'bump-win';
+  else if (pts === tgt - 1) p.animLevel = 'bump-high';
+  else if (pts >= tgt - 3)  p.animLevel = 'bump-mid';
+  else                      p.animLevel = 'bump-low';
+  p.animKey++;
+  if (pts >= tgt) {
     state.match.winner = playerIdx;
     stopTimer();
     releaseWakeLock();
@@ -150,8 +158,8 @@ function startMatch() {
 
   state.match = {
     players: [
-      { name: s.p1name.trim() || 'Player 1', legendName: p1 ? p1.name : '—', champion: p1 ? p1.champion : '', imageUrl: p1 ? `https://static.dotgg.gg/riftbound/cards/${p1.imageId}.webp` : '', pointLog: [] },
-      { name: s.p2name.trim() || 'Player 2', legendName: p2 ? p2.name : '—', champion: p2 ? p2.champion : '', imageUrl: p2 ? `https://static.dotgg.gg/riftbound/cards/${p2.imageId}.webp` : '', pointLog: [] },
+      { name: s.p1name.trim() || 'Player 1', legendName: p1 ? p1.name : '—', champion: p1 ? p1.champion : '', imageUrl: p1 ? `https://static.dotgg.gg/riftbound/cards/${p1.imageId}.webp` : '', pointLog: [], animKey: 0, animLevel: '' },
+      { name: s.p2name.trim() || 'Player 2', legendName: p2 ? p2.name : '—', champion: p2 ? p2.champion : '', imageUrl: p2 ? `https://static.dotgg.gg/riftbound/cards/${p2.imageId}.webp` : '', pointLog: [], animKey: 0, animLevel: '' },
     ],
     target: s.target,
     activeTurn: s.firstPlayer ?? 0,
@@ -305,7 +313,10 @@ const PlayerHalf = {
         ? `${p.legendName} · ${p.champion}`
         : p.legendName),
 
-      m('.pts-display', { class: atTarget ? 'at-target' : '' }, pts),
+      m('.pts-display', { key: p.animKey, class: [atTarget ? 'at-target' : '', p.animLevel].filter(Boolean).join(' ') }, pts),
+
+      // Per-point flash burst — keyed so it always replays on new points
+      p.animKey > 0 && m('.score-flash', { key: `flash-${p.animKey}`, class: p.animLevel }),
 
       m('.action-btns', [
         m('button.action-btn.conquer-btn', {

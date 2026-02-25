@@ -319,9 +319,80 @@ html, body, #app {
   line-height: 1;
   transition: color 0.3s;
   margin-top: 0.15rem;
+  transform-origin: center;
+  will-change: transform, opacity, text-shadow;
 }
 
 .pts-display.at-target { color: var(--accent2); text-shadow: 0 0 20px var(--accent); }
+
+/* ── Score bump animations ─────────────────────────────────────────────────── */
+.pts-display.bump-low  { animation: scoreBumpLow  0.5s cubic-bezier(0.15, 1.4, 0.4, 1) both; }
+.pts-display.bump-mid  { animation: scoreBumpMid  0.55s cubic-bezier(0.12, 1.5, 0.35, 1) both; }
+.pts-display.bump-high { animation: scoreBumpHigh 0.65s cubic-bezier(0.1, 1.6, 0.3, 1) both; }
+.pts-display.bump-win  { animation: scoreBumpWin  0.8s cubic-bezier(0.08, 1.7, 0.25, 1) both; }
+
+@keyframes scoreBumpLow {
+  0%   { transform: scale(1);    opacity: 1; }
+  30%  { transform: scale(2.0);  opacity: 1; text-shadow: 0 0 18px rgba(200,169,81,0.6); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes scoreBumpMid {
+  0%   { transform: scale(1); }
+  15%  { transform: scale(1.08) rotate(-1.5deg); }
+  30%  { transform: scale(2.5) rotate(0deg); text-shadow: 0 0 30px rgba(200,169,81,0.8), 0 0 60px rgba(200,120,30,0.4); }
+  55%  { transform: scale(0.93); }
+  100% { transform: scale(1); }
+}
+@keyframes scoreBumpHigh {
+  0%   { transform: scale(1); opacity: 1; }
+  10%  { transform: scale(0.88) rotate(2deg); }
+  30%  { transform: scale(3.0) rotate(-1deg); text-shadow: 0 0 40px rgba(240,140,30,0.95), 0 0 80px rgba(200,80,20,0.5); color: #f0b040; }
+  55%  { transform: scale(0.9) rotate(0.5deg); }
+  75%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes scoreBumpWin {
+  0%   { transform: scale(1);   opacity: 1; }
+  10%  { transform: scale(0.8); }
+  35%  { transform: scale(3.8); text-shadow: 0 0 50px rgba(240,200,60,1), 0 0 100px rgba(220,150,30,0.7), 0 0 160px rgba(200,100,20,0.4); color: #ffe060; letter-spacing: 0.15em; }
+  55%  { transform: scale(0.92); }
+  75%  { transform: scale(1.06); }
+  88%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+/* ── Per-point flash overlay ───────────────────────────────────────────────── */
+.score-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 4;
+}
+.score-flash.bump-low  { animation: flashLow  0.45s ease-out both; }
+.score-flash.bump-mid  { animation: flashMid  0.5s  ease-out both; }
+.score-flash.bump-high { animation: flashHigh 0.6s  ease-out both; }
+.score-flash.bump-win  { animation: flashWin  0.9s  ease-out both; }
+
+@keyframes flashLow {
+  0%   { background: radial-gradient(ellipse at center, rgba(200,169,81,0.30) 0%, transparent 70%); opacity: 1; }
+  100% { background: radial-gradient(ellipse at center, rgba(200,169,81,0)    0%, transparent 70%); opacity: 0; }
+}
+@keyframes flashMid {
+  0%   { background: radial-gradient(ellipse at center, rgba(220,140,40,0.45) 0%, transparent 75%); opacity: 1; }
+  100% { background: radial-gradient(ellipse at center, rgba(220,140,40,0)    0%, transparent 75%); opacity: 0; }
+}
+@keyframes flashHigh {
+  0%   { background: radial-gradient(ellipse at center, rgba(240,120,20,0.60) 0%, rgba(200,80,10,0.25) 50%, transparent 80%); opacity: 1; }
+  30%  { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+@keyframes flashWin {
+  0%   { background: radial-gradient(ellipse at center, rgba(255,220,60,0.75) 0%, rgba(220,140,20,0.4) 45%, transparent 80%); opacity: 1; }
+  25%  { opacity: 1; }
+  70%  { opacity: 0.5; }
+  100% { opacity: 0; }
+}
 
 /* Action buttons — Conquer & Hold */
 .action-btns {
