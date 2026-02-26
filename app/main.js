@@ -25,6 +25,7 @@ const RARITY_COLOR = {
 
 // -- Card helpers --
 const isOvernumbered = c => c.rarity?.value?.id === 'overnumbered';
+const isExtraCard    = c => isOvernumbered(c) || isSigned(c);
 const isType = (c, t) => (c.cardType?.type || []).some(ct =>
   ct.id?.toLowerCase() === t || ct.label?.toLowerCase() === t);
 const isRune        = c => isType(c, 'rune');
@@ -67,6 +68,7 @@ const state = {
   filterMissing: false,
   filterTrade:   false,
   filterWish:    false,
+  showExtras:    false,   // when false, overnumbered & signed cards are hidden
   copyDone:      false,
   chipRarity:    '',
   chipType:      '',
@@ -188,14 +190,14 @@ function cardsForSet(setId) {
 }
 
 function computeStats(setId) {
-  const cards = cardsForSet(setId).filter(c => !isOvernumbered(c));
+  const base = cardsForSet(setId).filter(c => state.showExtras || !isExtraCard(c));
   let uniqueTotal = 0, uniqueHave = 0;
   let masterTotal = 0, masterHave = 0;
   const rarityMiss = {};
   const typeMiss   = {};
   const domainMiss = {};
 
-  for (const card of cards) {
+  for (const card of base) {
     const owned = ownedTotal(card.id);
     uniqueTotal++;
     if (owned > 0) {
@@ -257,7 +259,7 @@ function copyList() {
 }
 
 function filteredCards() {
-  let cards = cardsForSet(state.selectedSet).filter(c => !isOvernumbered(c));
+  let cards = cardsForSet(state.selectedSet).filter(c => state.showExtras || !isExtraCard(c));
   const rF = state.chipRarity || state.filterRarity;
   const tF = state.chipType   || state.filterType;
   const dF = state.chipDomain || state.filterDomain;
@@ -429,6 +431,11 @@ const CardGrid = {
             onclick: () => state.filtersOpen = !state.filtersOpen,
           }, state.filtersOpen ? '▲ Filters' : '▼ Filters'),
           hasActive ? m('button.clear-chip-btn', { onclick: clearFilters }, '✕ Clear') : null,
+          m('button.qf-label', {
+            class: state.showExtras ? 'active' : '',
+            onclick: () => { state.showExtras = !state.showExtras; },
+            title: 'Toggle signed & overnumbered cards',
+          }, state.showExtras ? '✓ Extras On' : 'Show Extras'),
         ]),
       ]),
       state.filtersOpen ? m('.adv-filters', [

@@ -423,6 +423,8 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   transition: border-color 0.15s, color 0.15s;
+  background: none;
+  font-family: inherit;
 }
 .qf-label:hover  { border-color: var(--accent); color: var(--text); }
 .qf-label.active { border-color: var(--accent); color: var(--accent); background: rgba(200,169,81,0.06); }
