@@ -31,8 +31,16 @@ const isRune        = c => isType(c, 'rune');
 const isLegend      = c => isType(c, 'legend');
 const isBattlefield = c => isType(c, 'battlefield');
 
-// Normalize Firebase ID (e.g. "ogn-001-298") to DotGG format ("OGN-001")
-const normId = id => id ? id.split('-').slice(0, 2).join('-').toUpperCase() : id;
+// Normalize Firebase ID to DotGG format
+// Regular: "ogn-001-298" → "OGN-001"
+// Signed:  "ogn-302-star-298" → "OGN-302*"
+const normId = id => {
+  if (!id) return id;
+  const parts = id.split('-');
+  const base  = `${parts[0]}-${parts[1]}`.toUpperCase();
+  return parts.includes('star') ? `${base}*` : base;
+};
+const isSigned = c => c.id?.includes('-star-');
 
 function masterTarget(card) {
   if (isOvernumbered(card)) return null;
@@ -60,7 +68,7 @@ const state = {
   filterTrade:   false,
   filterWish:    false,
   copyDone:      false,
-  chipRarity:    '',,
+  chipRarity:    '',
   chipType:      '',
   chipDomain:    '',
 };
@@ -462,7 +470,10 @@ const CardGrid = {
             }),
           ]),
           m('.cg-body', [
-            m('.cg-name', card.name || normId(card.id)),
+            m('.cg-name', [
+              card.name || normId(card.id),
+              isSigned(card) ? m('span.signed-badge', '✍ Signed') : null,
+            ]),
             m('.cg-id', normId(card.id)),
             hasUser ? m('.cg-badges', [
               m('.badge.n', `N ${u.normal || 0}`),
@@ -488,7 +499,10 @@ const CardModal = {
           m('img.modal-img', { src: card.cardImage?.url || '', alt: card.name || card.id })
         ),
         m('.modal-info', [
-          m('h2.modal-name', card.name || normId(card.id)),
+          m('h2.modal-name', [
+              card.name || normId(card.id),
+              isSigned(card) ? m('span.signed-badge', '✍ Signed') : null,
+            ]),
           m('.modal-id', normId(card.id)),
           card.rarity?.value ? m('.modal-rarity', {
             style: { color: RARITY_COLOR[card.rarity.value.id] || '#888' },
