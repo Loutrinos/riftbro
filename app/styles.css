@@ -388,6 +388,21 @@ body {
   flex-shrink: 0;
 }
 
+.copy-list-btn {
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 0.28rem 0.7rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.copy-list-btn:hover { border-color: var(--accent); color: var(--accent); }
+.copy-list-btn.done  { border-color: var(--success); color: var(--success); background: rgba(76,175,130,0.08); }
+
 .quick-filters {
   margin-left: auto;
   display: flex;

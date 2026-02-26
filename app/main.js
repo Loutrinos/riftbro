@@ -59,7 +59,8 @@ const state = {
   filterMissing: false,
   filterTrade:   false,
   filterWish:    false,
-  chipRarity:    '',
+  copyDone:      false,
+  chipRarity:    '',,
   chipType:      '',
   chipDomain:    '',
 };
@@ -233,6 +234,20 @@ function computeStats(setId) {
   };
 }
 
+function copyList() {
+  const cards = filteredCards();
+  if (!cards.length) return;
+  const lines = cards.map(c => {
+    const qty = state.userCards[normId(c.id)]?.wish || 1;
+    return `${qty}x ${c.name || normId(c.id)}`;
+  });
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    state.copyDone = true;
+    m.redraw();
+    setTimeout(() => { state.copyDone = false; m.redraw(); }, 1800);
+  });
+}
+
 function filteredCards() {
   let cards = cardsForSet(state.selectedSet).filter(c => !isOvernumbered(c));
   const rF = state.chipRarity || state.filterRarity;
@@ -374,6 +389,11 @@ const CardGrid = {
     return m('.card-grid-section', [
       m('.grid-toolbar', [
         m('span.grid-count', `${cards.length} card${cards.length !== 1 ? 's' : ''}`),
+        cards.length > 0 ? m('button.copy-list-btn', {
+          class: state.copyDone ? 'done' : '',
+          onclick: copyList,
+          title: 'Copy list to clipboard',
+        }, state.copyDone ? '✓ Copied!' : '⎘ Copy List') : null,
         m('.quick-filters', [
           hasUser ? m('label.qf-label', { class: state.filterMissing ? 'active' : '' }, [
             m('input[type=checkbox]', {
