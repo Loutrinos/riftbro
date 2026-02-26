@@ -24,8 +24,17 @@ const RARITY_COLOR = {
 };
 
 // -- Card helpers --
+// True for any card whose collector number exceeds the set size
+// (the overnumbered showcase range, both regular and signed versions)
+const isAboveSet = c => {
+  if (!c.id) return false;
+  const parts = c.id.split('-');
+  // ID format: {set}-{num}-{setSize}  or  {set}-{num}-star-{setSize}
+  const setSize = parseInt(parts[parts.length - 1]);
+  return !isNaN(setSize) && setSize > 100 && c.collectorNumber > setSize;
+};
 const isOvernumbered = c => c.rarity?.value?.id === 'overnumbered';
-const isExtraCard    = c => isOvernumbered(c) || isSigned(c);
+const isExtraCard    = c => isAboveSet(c) || isOvernumbered(c);
 const isType = (c, t) => (c.cardType?.type || []).some(ct =>
   ct.id?.toLowerCase() === t || ct.label?.toLowerCase() === t);
 const isRune        = c => isType(c, 'rune');
@@ -44,8 +53,8 @@ const normId = id => {
 const isSigned = c => c.id?.includes('-star-');
 
 function masterTarget(card) {
-  if (isOvernumbered(card)) return null;
-  if (isRune(card))         return null;
+  if (isExtraCard(card)) return null;
+  if (isRune(card))      return null;
   if (isLegend(card))       return 1;
   if (isBattlefield(card))  return 1;
   return 3;
@@ -434,7 +443,7 @@ const CardGrid = {
           m('button.qf-label', {
             class: state.showExtras ? 'active' : '',
             onclick: () => { state.showExtras = !state.showExtras; },
-            title: 'Toggle signed & overnumbered cards',
+            title: 'Toggle above-set overnumbered cards (showcase + signed)',
           }, state.showExtras ? '✓ Extras On' : 'Show Extras'),
         ]),
       ]),
