@@ -477,7 +477,7 @@ const StatsPanel = {
         )),
       ]) : null,
       state.transitOrders.length ? m('.transit-section', [
-        m('.transit-header', 'In Transit Orders'),
+        m('.transit-header', { key: '__hdr' }, 'In Transit Orders'),
         ...state.transitOrders.map(order => {
           const totalQty = order.items.reduce((s, it) => s + it.normal + it.foil, 0);
           return m('.transit-order-row', { key: order.id }, [
