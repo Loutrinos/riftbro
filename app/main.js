@@ -14,6 +14,13 @@ const SETS = [
   { id: 'OGS', label: 'Proving Grounds', code: 'OGS' },
 ];
 
+// Maps Cardmarket expansion names to set codes
+const EXPANSION_TO_CODE = {
+  'Origins':         'OGN',
+  'Spiritforged':    'SFD',
+  'Proving Grounds': 'OGS',
+};
+
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic'];
 const RARITY_COLOR = {
   common:       '#9ca3af',
@@ -82,14 +89,89 @@ const state = {
   chipRarity:    '',
   chipType:      '',
   chipDomain:    '',
+  showImport:    false,
+  transitOrders: JSON.parse(localStorage.getItem('rb_transit_orders') || '[]'),
+  // ImportDialog working state
+  importHtml:    '',
+  importParsed:  null,  // { items, unmatched } after parse
+  importLabel:   '',
+  importError:   '',
 };
 
 if (state.username) state.phase = 'loading';
 
+// -- Transit helpers --
+function transitTotals() {
+  const map = new Map();
+  for (const order of state.transitOrders) {
+    for (const item of order.items) {
+      const cur = map.get(item.normId) || { normal: 0, foil: 0 };
+      cur.normal += item.normal || 0;
+      cur.foil   += item.foil   || 0;
+      map.set(item.normId, cur);
+    }
+  }
+  return map;
+}
+
+function saveTransitOrder(label, items) {
+  const order = {
+    id:    crypto.randomUUID(),
+    label: label.trim() || new Date().toLocaleDateString(),
+    date:  new Date().toISOString(),
+    items,
+  };
+  state.transitOrders = [order, ...state.transitOrders];
+  localStorage.setItem('rb_transit_orders', JSON.stringify(state.transitOrders));
+}
+
+function removeTransitOrder(id) {
+  state.transitOrders = state.transitOrders.filter(o => o.id !== id);
+  localStorage.setItem('rb_transit_orders', JSON.stringify(state.transitOrders));
+}
+
+function parseCMOrderHtml(html) {
+  const doc  = new DOMParser().parseFromString(html, 'text/html');
+  const rows = Array.from(doc.querySelectorAll('tr[data-amount]'));
+  if (!rows.length) return { items: [], unmatched: ['No table rows found — make sure you copied the order table.'] };
+
+  // Build a normId → card name lookup from the loaded catalog
+  const nameByNormId = new Map();
+  for (const c of state.cards) nameByNormId.set(normId(c.id), c.name || normId(c.id));
+
+  const itemMap  = new Map(); // normId → { normId, name, normal, foil }
+  const unmatched = [];
+
+  for (const row of rows) {
+    const amount       = parseInt(row.dataset.amount) || 1;
+    const expansionName = row.dataset.expansionName || '';
+    const numStr       = row.dataset.number || '';
+    const setCode      = EXPANSION_TO_CODE[expansionName];
+    if (!setCode) { unmatched.push(`Unknown expansion: "${expansionName}"`); continue; }
+    const num    = parseInt(numStr, 10);
+    if (isNaN(num)) { unmatched.push(`Bad number: "${numStr}"`); continue; }
+    const nId    = `${setCode}-${String(num).padStart(3, '0')}`;
+    const foil   = !!row.querySelector('[aria-label="Foil"]');
+    const name   = nameByNormId.get(nId) || null;
+    if (!name) { unmatched.push(`${nId} (${row.dataset.name || '?'}) — not in catalog`); continue; }
+
+    const existing = itemMap.get(nId) || { normId: nId, name, normal: 0, foil: 0 };
+    if (foil) existing.foil   += amount;
+    else      existing.normal += amount;
+    itemMap.set(nId, existing);
+  }
+
+  return { items: Array.from(itemMap.values()), unmatched };
+}
+
 // -- Data helpers --
 function ownedTotal(id) {
-  const u = state.userCards[normId(id)];
-  return u ? (u.normal || 0) + (u.foil || 0) : 0;
+  const nid    = normId(id);
+  const u      = state.userCards[nid];
+  const base   = u ? (u.normal || 0) + (u.foil || 0) : 0;
+  // Also count in-transit copies from saved orders
+  const tt     = transitTotals().get(nid) || { normal: 0, foil: 0 };
+  return base + tt.normal + tt.foil;
 }
 function isOwned(id) { return ownedTotal(id) > 0; }
 
@@ -394,6 +476,22 @@ const StatsPanel = {
           }, [m('span.chip-label', d.label), m('span.chip-count', d.count)])
         )),
       ]) : null,
+      state.transitOrders.length ? m('.transit-section', [
+        m('.transit-header', 'In Transit Orders'),
+        ...state.transitOrders.map(order => {
+          const totalQty = order.items.reduce((s, it) => s + it.normal + it.foil, 0);
+          return m('.transit-order-row', { key: order.id }, [
+            m('.transit-order-info', [
+              m('span.transit-order-label', order.label),
+              m('span.transit-order-meta', `${totalQty} card${totalQty !== 1 ? 's' : ''} · ${new Date(order.date).toLocaleDateString()}`),
+            ]),
+            m('button.transit-remove-btn', {
+              title: 'Remove this order',
+              onclick: () => { removeTransitOrder(order.id); m.redraw(); },
+            }, '\u2715'),
+          ]);
+        }),
+      ]) : null,
     ]);
   },
 };
@@ -496,6 +594,7 @@ const CardGrid = {
               m('.badge.f', `F ${u.foil   || 0}`),
               (u.trade || 0) > 0 ? m('.badge.t', `T ${u.trade}`) : null,
               (u.wish  || 0) > 0 ? m('.badge.w', `W ${u.wish}`)  : null,
+              (() => { const tt = transitTotals().get(normId(card.id)); return tt ? m('.badge.it', `\u231B ${tt.normal + tt.foil}`) : null; })(),
             ]) : null,
           ]),
         ]);
@@ -535,8 +634,81 @@ const CardModal = {
             m('.modal-badge.f', [m('span.mb-val', u.foil   || 0), m('span.mb-lab', 'Foil')]),
             m('.modal-badge.t', [m('span.mb-val', u.trade  || 0), m('span.mb-lab', 'Trade')]),
             m('.modal-badge.w', [m('span.mb-val', u.wish   || 0), m('span.mb-lab', 'Wish')]),
+            (() => { const tt = transitTotals().get(normId(card.id)); return tt ? m('.modal-badge.it', [m('span.mb-val', tt.normal + tt.foil), m('span.mb-lab', 'In Transit')]) : null; })(),
           ]) : null,
         ]),
+      ]),
+    ]);
+  },
+};
+
+const ImportDialog = {
+  view() {
+    const p = state.importParsed;
+    return m('.import-overlay', { onclick: () => { state.showImport = false; state.importParsed = null; state.importHtml = ''; state.importError = ''; } }, [
+      m('.import-dialog', { onclick: e => e.stopPropagation() }, [
+        m('h3.import-title', '\u2709 Import Cardmarket Order'),
+        m('p.import-hint', 'Paste the order table HTML from Cardmarket (right-click the table → Inspect, copy outer HTML, or select the whole table and paste here).'),
+        m('textarea.import-textarea', {
+          placeholder: 'Paste HTML here…',
+          value: state.importHtml,
+          oninput: e => { state.importHtml = e.target.value; state.importParsed = null; state.importError = ''; },
+        }),
+        state.importError ? m('.import-error', state.importError) : null,
+        !p ? m('button.import-parse-btn', {
+          disabled: !state.importHtml.trim(),
+          onclick() {
+            try {
+              state.importParsed = parseCMOrderHtml(state.importHtml);
+              if (!state.importParsed.items.length) state.importError = 'No matching cards found. Check that you copied the correct table HTML.';
+              state.importLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            } catch(e) {
+              state.importError = 'Parse error: ' + e.message;
+            }
+          },
+        }, 'Parse') : null,
+        p && p.items.length ? [
+          m('.import-preview-header', `Found ${p.items.length} card${p.items.length !== 1 ? 's' : ''}:`),
+          m('.import-preview-list',
+            p.items.map(it => m('.import-preview-row', { key: it.normId }, [
+              m('span.import-card-name', it.name),
+              m('span.import-card-id', it.normId),
+              it.normal ? m('span.badge.n.sm', `N ${it.normal}`) : null,
+              it.foil   ? m('span.badge.f.sm', `F ${it.foil}`)   : null,
+            ]))
+          ),
+          p.unmatched.length ? m('.import-unmatched', [
+            m('p.import-unmatched-title', `${p.unmatched.length} row${p.unmatched.length !== 1 ? 's' : ''} not matched:`),
+            ...p.unmatched.map(s => m('p.import-unmatched-row', s)),
+          ]) : null,
+          m('.import-label-row', [
+            m('label', 'Order label:'),
+            m('input.import-label-input', {
+              value: state.importLabel,
+              oninput: e => state.importLabel = e.target.value,
+            }),
+          ]),
+          m('.import-actions', [
+            m('button.import-save-btn', {
+              onclick() {
+                saveTransitOrder(state.importLabel, p.items);
+                state.showImport  = false;
+                state.importParsed = null;
+                state.importHtml  = '';
+                state.importError = '';
+                m.redraw();
+              },
+            }, '\u2714 Save Order'),
+            m('button.import-cancel-btn', {
+              onclick: () => { state.showImport = false; state.importParsed = null; state.importHtml = ''; state.importError = ''; },
+            }, 'Cancel'),
+          ]),
+        ] : null,
+        !p ? m('.import-actions', [
+          m('button.import-cancel-btn', {
+            onclick: () => { state.showImport = false; state.importHtml = ''; state.importError = ''; },
+          }, 'Cancel'),
+        ]) : null,
       ]),
     ]);
   },
@@ -560,8 +732,13 @@ const MainScreen = {
             },
           }, 'Change'),
           m('button.refresh-btn', { onclick: refresh, title: 'Refresh collection' }, '↻'),
+          m('button.import-btn', {
+            title: 'Import Cardmarket order',
+            onclick: () => { state.showImport = true; },
+          }, '\u2709 Import'),
         ]),
       ]),
+      state.showImport ? m(ImportDialog) : null,
       m('.set-tabs', [
         m('.set-tab', {
           key: 'all',
