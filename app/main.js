@@ -42,8 +42,8 @@ const DOMAIN_COLOR = {
 
 const TYPE_ICON = {
   unit:        '\u2694',  // ⚔ crossed swords
-  action:      '\u26A1',  // ⚡ lightning
-  equipment:   '\u2699',  // ⚙ gear
+  spell:       '\u26A1',  // ⚡ lightning
+  gear:        '\u2699',  // ⚙ gear
   rune:        '\u25C6',  // ◆ diamond
   battlefield: '\u25C9',  // ◉ bullseye
   legend:      '\u2605',  // ★ star
