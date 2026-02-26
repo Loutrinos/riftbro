@@ -241,6 +241,8 @@ function filteredCards() {
   if (rF) cards = cards.filter(c => c.rarity?.value?.id === rF);
   if (tF) cards = cards.filter(c => (c.cardType?.type || []).some(ct => ct.id === tF));
   if (dF) cards = cards.filter(c => (c.domain?.values || []).some(d => d.id === dF));
+  // Chip filters come from "Missing by …" sections — always show only unowned cards
+  if (state.chipRarity || state.chipType || state.chipDomain) cards = cards.filter(c => !isOwned(c.id));
   if (state.filterMissing) cards = cards.filter(c => !isOwned(c.id));
   if (state.filterTrade)   cards = cards.filter(c => (state.userCards[normId(c.id)]?.trade || 0) > 0);
   if (state.filterWish)    cards = cards.filter(c => (state.userCards[normId(c.id)]?.wish  || 0) > 0);
