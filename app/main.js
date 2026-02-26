@@ -30,6 +30,25 @@ const RARITY_COLOR = {
   overnumbered: '#f59e0b',
 };
 
+const DOMAIN_COLOR = {
+  fury:       '#f87171', // red
+  body:       '#4ade80', // green
+  mind:       '#818cf8', // indigo
+  calm:       '#38bdf8', // sky
+  chaos:      '#c084fc', // purple
+  order:      '#fbbf24', // amber
+  colorless:  '#9ca3af', // gray
+};
+
+const TYPE_ICON = {
+  unit:        '\u2694',  // ⚔ crossed swords
+  action:      '\u26A1',  // ⚡ lightning
+  equipment:   '\u2699',  // ⚙ gear
+  rune:        '\u25C6',  // ◆ diamond
+  battlefield: '\u25C9',  // ◉ bullseye
+  legend:      '\u2605',  // ★ star
+};
+
 // -- Card helpers --
 // True for any card whose collector number exceeds the set size
 // (the overnumbered showcase range, both regular and signed versions)
@@ -459,7 +478,11 @@ const StatsPanel = {
               state.chipRarity = '';
               state.chipDomain = '';
             },
-          }, [m('span.chip-label', t.label), m('span.chip-count', t.count)])
+          }, [
+            TYPE_ICON[t.id] ? m('span.chip-icon', TYPE_ICON[t.id]) : null,
+            m('span.chip-label', t.label),
+            m('span.chip-count', t.count),
+          ])
         )),
       ]) : null,
       stats.domainMiss.length ? m('.chip-group', [
@@ -468,12 +491,13 @@ const StatsPanel = {
           m('.miss-chip', {
             key: d.id,
             class: state.chipDomain === d.id ? 'active' : '',
+            style: { '--chip-c': DOMAIN_COLOR[d.id] || '#888' },
             onclick() {
               state.chipDomain = state.chipDomain === d.id ? '' : d.id;
               state.chipRarity = '';
               state.chipType   = '';
             },
-          }, [m('span.chip-label', d.label), m('span.chip-count', d.count)])
+          }, [m('span.chip-dot'), m('span.chip-label', d.label), m('span.chip-count', d.count)])
         )),
       ]) : null,
       state.transitOrders.length ? m('.transit-section', [

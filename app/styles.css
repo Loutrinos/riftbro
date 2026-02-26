@@ -358,6 +358,12 @@ body {
 }
 
 .chip-label { font-weight: 500; }
+.chip-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
 .chip-count {
   font-size: 0.7rem;
   color: var(--text-muted);
