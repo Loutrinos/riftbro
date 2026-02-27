@@ -719,6 +719,17 @@ body {
   color: #f97316;
 }
 
+/* -- Want List badge -------------------------------------------- */
+.badge.wl {
+  background: rgba(20,184,166,0.15);
+  color: #14b8a6;
+}
+.modal-badge.wl {
+  background: rgba(20,184,166,0.12);
+  border-color: rgba(20,184,166,0.3);
+  color: #14b8a6;
+}
+
 /* -- Transit Orders in StatsPanel ------------------------------- */
 .transit-section {
   margin-top: 1rem;

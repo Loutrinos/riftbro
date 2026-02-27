@@ -117,6 +117,12 @@ const state = {
   importParsed:  null,  // { items, unmatched } after parse
   importLabel:   '',
   importError:   '',
+  // Want list
+  showWant:   false,
+  wantList:   JSON.parse(localStorage.getItem('rb_want_list') || '[]'),
+  wantText:   '',
+  wantParsed: null,  // { items, unmatched } after parse
+  wantError:  '',
 };
 
 if (state.username) state.phase = 'loading';
@@ -149,6 +155,49 @@ function saveTransitOrder(label, items) {
 function removeTransitOrder(id) {
   state.transitOrders = state.transitOrders.filter(o => o.id !== id);
   localStorage.setItem('rb_transit_orders', JSON.stringify(state.transitOrders));
+}
+
+// -- Want list helpers --
+function wantTotals() {
+  const map = new Map();
+  for (const it of state.wantList) map.set(it.normId, it.qty);
+  return map;
+}
+
+function saveWantList(items) {
+  const map = new Map(state.wantList.map(it => [it.normId, { ...it }]));
+  for (const it of items) {
+    const ex = map.get(it.normId);
+    if (ex) ex.qty += it.qty;
+    else map.set(it.normId, { ...it });
+  }
+  state.wantList = Array.from(map.values());
+  localStorage.setItem('rb_want_list', JSON.stringify(state.wantList));
+}
+
+function removeWantItem(nid) {
+  state.wantList = state.wantList.filter(it => it.normId !== nid);
+  localStorage.setItem('rb_want_list', JSON.stringify(state.wantList));
+}
+
+function parseWantText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const nameByNormId = new Map();
+  for (const c of state.cards) nameByNormId.set(normId(c.id), c.name || normId(c.id));
+  const itemMap  = new Map();
+  const unmatched = [];
+  for (const line of lines) {
+    const match = line.match(/^(\d+)\s*[xX]\s*([A-Za-z]+-\d+\*?)$/);
+    if (!match) { unmatched.push(`Cannot parse: "${line}"`); continue; }
+    const qty = parseInt(match[1]);
+    const nId = match[2].toUpperCase();
+    const name = nameByNormId.get(nId);
+    if (!name) { unmatched.push(`${nId} — not found in catalog`); continue; }
+    const existing = itemMap.get(nId) || { normId: nId, name, qty: 0 };
+    existing.qty += qty;
+    itemMap.set(nId, existing);
+  }
+  return { items: Array.from(itemMap.values()), unmatched };
 }
 
 function parseCMOrderHtml(html) {
@@ -192,7 +241,9 @@ function ownedTotal(id) {
   const base   = u ? (u.normal || 0) + (u.foil || 0) : 0;
   // Also count in-transit copies from saved orders
   const tt     = transitTotals().get(nid) || { normal: 0, foil: 0 };
-  return base + tt.normal + tt.foil;
+  // Also count wanted copies
+  const wt     = wantTotals().get(nid) || 0;
+  return base + tt.normal + tt.foil + wt;
 }
 function isOwned(id) { return ownedTotal(id) > 0; }
 
@@ -517,8 +568,19 @@ const StatsPanel = {
             }, '\u2715'),
           ]);
         }),
-      ]) : null,
-    ]);
+      ]) : null,      state.wantList.length ? m('.transit-section', [
+        m('.transit-header', { key: '__wl-hdr' }, '\u2661 Want List'),
+        ...state.wantList.map(it => m('.transit-order-row', { key: it.normId }, [
+          m('.transit-order-info', [
+            m('span.transit-order-label', it.name),
+            m('span.transit-order-meta', `${it.normId} \u00b7 \u00d7${it.qty}`),
+          ]),
+          m('button.transit-remove-btn', {
+            title: 'Remove from want list',
+            onclick: () => { removeWantItem(it.normId); m.redraw(); },
+          }, '\u2715'),
+        ])),
+      ]) : null,    ]);
   },
 };
 
@@ -621,6 +683,7 @@ const CardGrid = {
               (u.trade || 0) > 0 ? m('.badge.t', `T ${u.trade}`) : null,
               (u.wish  || 0) > 0 ? m('.badge.w', `W ${u.wish}`)  : null,
               (() => { const tt = transitTotals().get(normId(card.id)); return tt ? m('.badge.it', `\u231B ${tt.normal + tt.foil}`) : null; })(),
+              (() => { const wt = wantTotals().get(normId(card.id)); return wt ? m('.badge.wl', `\u2661 ${wt}`) : null; })(),
             ]) : null,
           ]),
         ]);
@@ -661,8 +724,66 @@ const CardModal = {
             m('.modal-badge.t', [m('span.mb-val', u.trade  || 0), m('span.mb-lab', 'Trade')]),
             m('.modal-badge.w', [m('span.mb-val', u.wish   || 0), m('span.mb-lab', 'Wish')]),
             (() => { const tt = transitTotals().get(normId(card.id)); return tt ? m('.modal-badge.it', [m('span.mb-val', tt.normal + tt.foil), m('span.mb-lab', 'In Transit')]) : null; })(),
+            (() => { const wt = wantTotals().get(normId(card.id)); return wt ? m('.modal-badge.wl', [m('span.mb-val', wt), m('span.mb-lab', 'Wanted')]) : null; })(),
           ]) : null,
         ]),
+      ]),
+    ]);
+  },
+};
+
+const WantDialog = {
+  view() {
+    const p = state.wantParsed;
+    const close = () => { state.showWant = false; state.wantParsed = null; state.wantText = ''; state.wantError = ''; };
+    return m('.import-overlay', { onclick: close }, [
+      m('.import-dialog', { onclick: e => e.stopPropagation() }, [
+        m('h3.import-title', '\u2661 Want List'),
+        m('p.import-hint', 'Enter cards you want, one per line. Format: \u00a01x\u00a0OGN-037'),
+        m('textarea.import-textarea', {
+          placeholder: '1x OGN-037\n2x SFD-015\n1x OGN-120',
+          value: state.wantText,
+          oninput: e => { state.wantText = e.target.value; state.wantParsed = null; state.wantError = ''; },
+        }),
+        state.wantError ? m('.import-error', state.wantError) : null,
+        !p ? m('button.import-parse-btn', {
+          disabled: !state.wantText.trim(),
+          onclick() {
+            try {
+              state.wantParsed = parseWantText(state.wantText);
+              if (!state.wantParsed.items.length) state.wantError = 'No cards matched. Check the format: 1x OGN-037';
+            } catch(e) {
+              state.wantError = 'Parse error: ' + e.message;
+            }
+          },
+        }, 'Parse') : null,
+        p && p.items.length ? [
+          m('.import-preview-header', `Found ${p.items.length} card${p.items.length !== 1 ? 's' : ''}:`),
+          m('.import-preview-list',
+            p.items.map(it => m('.import-preview-row', { key: it.normId }, [
+              m('span.import-card-name', it.name),
+              m('span.import-card-id', it.normId),
+              m('span.badge.wl.sm', `\u00d7${it.qty}`),
+            ]))
+          ),
+          p.unmatched.length ? m('.import-unmatched', [
+            m('p.import-unmatched-title', `${p.unmatched.length} line${p.unmatched.length !== 1 ? 's' : ''} not matched:`),
+            ...p.unmatched.map(s => m('p.import-unmatched-row', s)),
+          ]) : null,
+          m('.import-actions', [
+            m('button.import-save-btn', {
+              onclick() {
+                saveWantList(p.items);
+                close();
+                m.redraw();
+              },
+            }, '\u2714 Add to Want List'),
+            m('button.import-cancel-btn', { onclick: close }, 'Cancel'),
+          ]),
+        ] : null,
+        !p ? m('.import-actions', [
+          m('button.import-cancel-btn', { onclick: close }, 'Cancel'),
+        ]) : null,
       ]),
     ]);
   },
@@ -762,9 +883,14 @@ const MainScreen = {
             title: 'Import Cardmarket order',
             onclick: () => { state.showImport = true; },
           }, '\u2709 Import'),
+          m('button.import-btn', {
+            title: 'Manage want list',
+            onclick: () => { state.showWant = true; },
+          }, '\u2661 Want'),
         ]),
       ]),
       state.showImport ? m(ImportDialog) : null,
+      state.showWant  ? m(WantDialog)   : null,
       m('.set-tabs', [
         m('.set-tab', {
           key: 'all',
