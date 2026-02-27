@@ -60,7 +60,9 @@ const isAboveSet = c => {
   return !isNaN(setSize) && setSize > 100 && c.collectorNumber > setSize;
 };
 const isOvernumbered = c => c.rarity?.value?.id === 'overnumbered';
-const isExtraCard    = c => isAboveSet(c) || isOvernumbered(c);
+// Showcase cards have a letter suffix on the collector number: ogn-001a-298 → OGN-001a
+const isShowcase     = c => /[a-zA-Z]$/.test(c.id?.split('-')[1] || '');
+const isExtraCard    = c => isAboveSet(c) || isOvernumbered(c) || isShowcase(c);
 const isType = (c, t) => (c.cardType?.type || []).some(ct =>
   ct.id?.toLowerCase() === t || ct.label?.toLowerCase() === t);
 const isRune        = c => isType(c, 'rune');
@@ -565,7 +567,7 @@ const CardGrid = {
           m('button.qf-label', {
             class: state.showExtras ? 'active' : '',
             onclick: () => { state.showExtras = !state.showExtras; },
-            title: 'Toggle above-set overnumbered cards (showcase + signed)',
+            title: 'Toggle extras: above-set overnumbered, in-set showcase (SET-XXXa) and signed cards',
           }, state.showExtras ? '✓ Extras On' : 'Show Extras'),
         ]),
       ]),
