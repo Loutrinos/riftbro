@@ -118,11 +118,12 @@ const state = {
   importLabel:   '',
   importError:   '',
   // Want list
-  showWant:   false,
-  wantList:   JSON.parse(localStorage.getItem('rb_want_list') || '[]'),
-  wantText:   '',
-  wantParsed: null,  // { items, unmatched } after parse
-  wantError:  '',
+  showWant:    false,
+  wantOrders:  JSON.parse(localStorage.getItem('rb_want_orders') || '[]'),
+  wantText:    '',
+  wantParsed:  null,  // { items, unmatched } after parse
+  wantLabel:   '',
+  wantError:   '',
 };
 
 if (state.username) state.phase = 'loading';
@@ -160,24 +161,28 @@ function removeTransitOrder(id) {
 // -- Want list helpers --
 function wantTotals() {
   const map = new Map();
-  for (const it of state.wantList) map.set(it.normId, it.qty);
+  for (const order of state.wantOrders) {
+    for (const it of order.items) {
+      map.set(it.normId, (map.get(it.normId) || 0) + it.qty);
+    }
+  }
   return map;
 }
 
-function saveWantList(items) {
-  const map = new Map(state.wantList.map(it => [it.normId, { ...it }]));
-  for (const it of items) {
-    const ex = map.get(it.normId);
-    if (ex) ex.qty += it.qty;
-    else map.set(it.normId, { ...it });
-  }
-  state.wantList = Array.from(map.values());
-  localStorage.setItem('rb_want_list', JSON.stringify(state.wantList));
+function saveWantOrder(label, items) {
+  const order = {
+    id:    crypto.randomUUID(),
+    label: label.trim() || new Date().toLocaleDateString(),
+    date:  new Date().toISOString(),
+    items,
+  };
+  state.wantOrders = [order, ...state.wantOrders];
+  localStorage.setItem('rb_want_orders', JSON.stringify(state.wantOrders));
 }
 
-function removeWantItem(nid) {
-  state.wantList = state.wantList.filter(it => it.normId !== nid);
-  localStorage.setItem('rb_want_list', JSON.stringify(state.wantList));
+function removeWantOrder(id) {
+  state.wantOrders = state.wantOrders.filter(o => o.id !== id);
+  localStorage.setItem('rb_want_orders', JSON.stringify(state.wantOrders));
 }
 
 function parseWantText(text) {
@@ -568,19 +573,23 @@ const StatsPanel = {
             }, '\u2715'),
           ]);
         }),
-      ]) : null,      state.wantList.length ? m('.transit-section', [
-        m('.transit-header', { key: '__wl-hdr' }, '\u2661 Want List'),
-        ...state.wantList.map(it => m('.transit-order-row', { key: it.normId }, [
-          m('.transit-order-info', [
-            m('span.transit-order-label', it.name),
-            m('span.transit-order-meta', `${it.normId} \u00b7 \u00d7${it.qty}`),
-          ]),
-          m('button.transit-remove-btn', {
-            title: 'Remove from want list',
-            onclick: () => { removeWantItem(it.normId); m.redraw(); },
-          }, '\u2715'),
-        ])),
-      ]) : null,    ]);
+      ]) : null,      state.wantOrders.length ? m('.transit-section', [
+        m('.transit-header', { key: '__wl-hdr' }, '\u2661 Want Orders'),
+        ...state.wantOrders.map(order => {
+          const totalQty = order.items.reduce((s, it) => s + it.qty, 0);
+          return m('.transit-order-row', { key: order.id }, [
+            m('.transit-order-info', [
+              m('span.transit-order-label', order.label),
+              m('span.transit-order-meta', `${order.items.length} card${order.items.length !== 1 ? 's' : ''} \u00b7 \u00d7${totalQty} \u00b7 ${new Date(order.date).toLocaleDateString()}`),
+            ]),
+            m('button.transit-remove-btn', {
+              title: 'Remove this want order',
+              onclick: () => { removeWantOrder(order.id); m.redraw(); },
+            }, '\u2715'),
+          ]);
+        }),
+      ]) : null,
+    ]);
   },
 };
 
@@ -735,7 +744,7 @@ const CardModal = {
 const WantDialog = {
   view() {
     const p = state.wantParsed;
-    const close = () => { state.showWant = false; state.wantParsed = null; state.wantText = ''; state.wantError = ''; };
+    const close = () => { state.showWant = false; state.wantParsed = null; state.wantText = ''; state.wantLabel = ''; state.wantError = ''; };
     return m('.import-overlay', { onclick: close }, [
       m('.import-dialog', { onclick: e => e.stopPropagation() }, [
         m('h3.import-title', '\u2661 Want List'),
@@ -752,6 +761,7 @@ const WantDialog = {
             try {
               state.wantParsed = parseWantText(state.wantText);
               if (!state.wantParsed.items.length) state.wantError = 'No cards matched. Check the format: 1x OGN-037';
+              else state.wantLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             } catch(e) {
               state.wantError = 'Parse error: ' + e.message;
             }
@@ -770,14 +780,21 @@ const WantDialog = {
             m('p.import-unmatched-title', `${p.unmatched.length} line${p.unmatched.length !== 1 ? 's' : ''} not matched:`),
             ...p.unmatched.map(s => m('p.import-unmatched-row', s)),
           ]) : null,
+          m('.import-label-row', [
+            m('label', 'List label:'),
+            m('input.import-label-input', {
+              value: state.wantLabel,
+              oninput: e => state.wantLabel = e.target.value,
+            }),
+          ]),
           m('.import-actions', [
             m('button.import-save-btn', {
               onclick() {
-                saveWantList(p.items);
+                saveWantOrder(state.wantLabel, p.items);
                 close();
                 m.redraw();
               },
-            }, '\u2714 Add to Want List'),
+            }, '\u2714 Save Want Order'),
             m('button.import-cancel-btn', { onclick: close }, 'Cancel'),
           ]),
         ] : null,
