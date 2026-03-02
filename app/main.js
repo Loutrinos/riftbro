@@ -103,6 +103,7 @@ const state = {
   filterDomain:  '',
   filterType:    '',
   filterMissing: false,
+  filterMasterMissing: false,
   filterTrade:   false,
   filterWish:    false,
   showExtras:    false,   // when false, overnumbered & signed cards are hidden
@@ -262,8 +263,9 @@ function clearFilters() {
   state.filterRarity  = '';
   state.filterDomain  = '';
   state.filterType    = '';
-  state.filterMissing = false;
-  state.filterTrade   = false;
+  state.filterMissing       = false;
+  state.filterMasterMissing = false;
+  state.filterTrade         = false;
   state.filterWish    = false;
   resetChips();
 }
@@ -437,6 +439,10 @@ function filteredCards() {
   // Chip filters come from "Missing by …" sections — always show only unowned cards
   if (state.chipRarity || state.chipType || state.chipDomain) cards = cards.filter(c => !isOwned(c.id));
   if (state.filterMissing) cards = cards.filter(c => !isOwned(c.id));
+  if (state.filterMasterMissing) cards = cards.filter(c => {
+    const t = masterTarget(c);
+    return t !== null && ownedTotal(c.id) < t;
+  });
   if (state.filterTrade)   cards = cards.filter(c => (state.userCards[normId(c.id)]?.trade || 0) > 0);
   if (state.filterWish)    cards = cards.filter(c => (state.userCards[normId(c.id)]?.wish  || 0) > 0);
   return cards;
@@ -599,7 +605,7 @@ const CardGrid = {
     const hasUser = Object.keys(state.userCards).length > 0;
     const hasActive = state.chipRarity || state.chipType || state.chipDomain ||
                       state.filterRarity || state.filterDomain || state.filterType ||
-                      state.filterMissing || state.filterTrade || state.filterWish;
+                      state.filterMissing || state.filterMasterMissing || state.filterTrade || state.filterWish;
     return m('.card-grid-section', [
       m('.grid-toolbar', [
         m('span.grid-count', `${cards.length} card${cards.length !== 1 ? 's' : ''}`),
@@ -615,6 +621,13 @@ const CardGrid = {
               onchange: e => { state.filterMissing = e.target.checked; resetChips(); },
             }),
             ' Missing',
+          ]) : null,
+          hasUser ? m('label.qf-label', { class: state.filterMasterMissing ? 'active' : '' }, [
+            m('input[type=checkbox]', {
+              checked: state.filterMasterMissing,
+              onchange: e => { state.filterMasterMissing = e.target.checked; resetChips(); },
+            }),
+            ' Master Missing',
           ]) : null,
           hasUser ? m('label.qf-label', { class: state.filterTrade ? 'active' : '' }, [
             m('input[type=checkbox]', {
