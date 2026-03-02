@@ -103,8 +103,8 @@ const state = {
   filterDomain:  '',
   filterType:    '',
   filterMissing: false,
-  filterMasterMissing: false,
   filterTrade:   false,
+  viewMode:      'unique',  // 'unique' | 'master'
   filterWish:    false,
   showExtras:    false,   // when false, overnumbered & signed cards are hidden
   copyDone:      false,
@@ -253,6 +253,16 @@ function ownedTotal(id) {
 }
 function isOwned(id) { return ownedTotal(id) > 0; }
 
+// True when a card is "missing" relative to the active view mode:
+// unique → not owned at all; master → below its master-set target count
+function isMissingForMode(card) {
+  if (state.viewMode === 'master') {
+    const t = masterTarget(card);
+    return t !== null && ownedTotal(card.id) < t;
+  }
+  return ownedTotal(card.id) === 0;
+}
+
 function resetChips() {
   state.chipRarity = '';
   state.chipType   = '';
@@ -263,9 +273,8 @@ function clearFilters() {
   state.filterRarity  = '';
   state.filterDomain  = '';
   state.filterType    = '';
-  state.filterMissing       = false;
-  state.filterMasterMissing = false;
-  state.filterTrade         = false;
+  state.filterMissing = false;
+  state.filterTrade   = false;
   state.filterWish    = false;
   resetChips();
 }
@@ -370,9 +379,8 @@ function computeStats(setId) {
   for (const card of base) {
     const owned = ownedTotal(card.id);
     uniqueTotal++;
-    if (owned > 0) {
-      uniqueHave++;
-    } else {
+    if (owned > 0) uniqueHave++;
+    if (isMissingForMode(card)) {
       const rId    = card.rarity?.value?.id    || 'unknown';
       const rLabel = card.rarity?.value?.label || rId;
       if (!rarityMiss[rId]) rarityMiss[rId] = { label: rLabel, count: 0 };
@@ -436,13 +444,9 @@ function filteredCards() {
   if (rF) cards = cards.filter(c => c.rarity?.value?.id === rF);
   if (tF) cards = cards.filter(c => (c.cardType?.type || []).some(ct => ct.id === tF));
   if (dF) cards = cards.filter(c => (c.domain?.values || []).some(d => d.id === dF));
-  // Chip filters come from "Missing by …" sections — always show only unowned cards
-  if (state.chipRarity || state.chipType || state.chipDomain) cards = cards.filter(c => !isOwned(c.id));
-  if (state.filterMissing) cards = cards.filter(c => !isOwned(c.id));
-  if (state.filterMasterMissing) cards = cards.filter(c => {
-    const t = masterTarget(c);
-    return t !== null && ownedTotal(c.id) < t;
-  });
+  // Chip filters come from "Missing by …" sections — respect current view mode
+  if (state.chipRarity || state.chipType || state.chipDomain) cards = cards.filter(c => isMissingForMode(c));
+  if (state.filterMissing) cards = cards.filter(c => isMissingForMode(c));
   if (state.filterTrade)   cards = cards.filter(c => (state.userCards[normId(c.id)]?.trade || 0) > 0);
   if (state.filterWish)    cards = cards.filter(c => (state.userCards[normId(c.id)]?.wish  || 0) > 0);
   return cards;
@@ -605,7 +609,7 @@ const CardGrid = {
     const hasUser = Object.keys(state.userCards).length > 0;
     const hasActive = state.chipRarity || state.chipType || state.chipDomain ||
                       state.filterRarity || state.filterDomain || state.filterType ||
-                      state.filterMissing || state.filterMasterMissing || state.filterTrade || state.filterWish;
+                      state.filterMissing || state.filterTrade || state.filterWish;
     return m('.card-grid-section', [
       m('.grid-toolbar', [
         m('span.grid-count', `${cards.length} card${cards.length !== 1 ? 's' : ''}`),
@@ -615,19 +619,22 @@ const CardGrid = {
           title: 'Copy list to clipboard',
         }, state.copyDone ? '✓ Copied!' : '⎘ Copy List') : null,
         m('.quick-filters', [
+          m('.view-mode-tabs', [
+            m('button.view-tab', {
+              class: state.viewMode === 'unique' ? 'active' : '',
+              onclick: () => { state.viewMode = 'unique'; resetChips(); },
+            }, 'Unique'),
+            m('button.view-tab', {
+              class: state.viewMode === 'master' ? 'active' : '',
+              onclick: () => { state.viewMode = 'master'; resetChips(); },
+            }, 'Master Set'),
+          ]),
           hasUser ? m('label.qf-label', { class: state.filterMissing ? 'active' : '' }, [
             m('input[type=checkbox]', {
               checked: state.filterMissing,
               onchange: e => { state.filterMissing = e.target.checked; resetChips(); },
             }),
             ' Missing',
-          ]) : null,
-          hasUser ? m('label.qf-label', { class: state.filterMasterMissing ? 'active' : '' }, [
-            m('input[type=checkbox]', {
-              checked: state.filterMasterMissing,
-              onchange: e => { state.filterMasterMissing = e.target.checked; resetChips(); },
-            }),
-            ' Master Missing',
           ]) : null,
           hasUser ? m('label.qf-label', { class: state.filterTrade ? 'active' : '' }, [
             m('input[type=checkbox]', {
@@ -677,7 +684,7 @@ const CardGrid = {
       m('.card-grid', cards.map(card => {
         const u      = state.userCards[normId(card.id)] || {};
         const owned  = (u.normal || 0) + (u.foil || 0);
-        const missing = hasUser && owned === 0;
+        const missing = hasUser && isMissingForMode(card);
         return m('.cg-card', {
           key: card.id,
           class: missing ? 'missing' : '',

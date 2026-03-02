@@ -449,6 +449,32 @@ body {
 }
 .filter-toggle:hover, .filter-toggle.open { border-color: var(--accent); color: var(--accent); }
 
+/* -- View Mode Toggle ------------------------------------------- */
+.view-mode-tabs {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.view-tab {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.view-tab + .view-tab { border-left: 1px solid var(--border); }
+.view-tab:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.view-tab.active {
+  background: rgba(200,169,81,0.14);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .clear-chip-btn {
   background: none;
   border: 1px solid rgba(224,85,85,0.4);
