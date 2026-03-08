@@ -79,6 +79,9 @@ const normId = id => {
   return parts.includes('star') ? `${base}*` : base;
 };
 const isSigned = c => c.id?.includes('-star-');
+// Strip trailing alpha suffix from the number segment so showcase variants
+// pool with their base for master-set counting: OGN-193A → OGN-193
+const baseNormId = nId => nId.replace(/^([A-Z]+-\d+)[A-Za-z]+(\*?)$/, '$1$2');
 
 function masterTarget(card) {
   if (isExtraCard(card)) return null;
@@ -254,13 +257,36 @@ function ownedTotal(id) {
 function isOwned(id) { return ownedTotal(id) > 0; }
 
 // True when a card is "missing" relative to the active view mode:
-// unique → not owned at all; master → below its master-set target count
-function isMissingForMode(card) {
+// unique → not owned at all; master → pooled copies below master-set target
+function isMissingForMode(card, pooled) {
   if (state.viewMode === 'master') {
     const t = masterTarget(card);
-    return t !== null && ownedTotal(card.id) < t;
+    if (t === null) return false;
+    const count = pooled
+      ? (pooled.get(baseNormId(normId(card.id))) || 0)
+      : ownedTotal(card.id);
+    return count < t;
   }
   return ownedTotal(card.id) === 0;
+}
+
+// Build a Map<baseNormId, totalOwned> summing all variants (base + showcase).
+// Only meaningful in master mode; returns null in unique mode (callers skip it).
+function buildPooledMap() {
+  if (state.viewMode !== 'master') return null;
+  const tt = transitTotals();
+  const wt = wantTotals();
+  const map = new Map();
+  for (const c of state.cards) {
+    const nId    = normId(c.id);
+    const bId    = baseNormId(nId);
+    const u      = state.userCards[nId] || {};
+    const trans  = tt.get(nId) || { normal: 0, foil: 0 };
+    const want   = wt.get(nId) || 0;
+    const owned  = (u.normal || 0) + (u.foil || 0) + trans.normal + trans.foil + want;
+    map.set(bId, (map.get(bId) || 0) + owned);
+  }
+  return map;
 }
 
 function resetChips() {
@@ -369,7 +395,8 @@ function cardsForSet(setId) {
 }
 
 function computeStats(setId) {
-  const base = cardsForSet(setId).filter(c => state.showExtras || !isExtraCard(c));
+  const base   = cardsForSet(setId).filter(c => state.showExtras || !isExtraCard(c));
+  const pooled = buildPooledMap(); // null in unique mode
   let uniqueTotal = 0, uniqueHave = 0;
   let masterTotal = 0, masterHave = 0;
   const rarityMiss = {};
@@ -380,7 +407,7 @@ function computeStats(setId) {
     const owned = ownedTotal(card.id);
     uniqueTotal++;
     if (owned > 0) uniqueHave++;
-    if (isMissingForMode(card)) {
+    if (isMissingForMode(card, pooled)) {
       const rId    = card.rarity?.value?.id    || 'unknown';
       const rLabel = card.rarity?.value?.label || rId;
       if (!rarityMiss[rId]) rarityMiss[rId] = { label: rLabel, count: 0 };
@@ -399,7 +426,8 @@ function computeStats(setId) {
     const target = masterTarget(card);
     if (target !== null) {
       masterTotal += target;
-      masterHave  += Math.min(owned, target);
+      const count = pooled ? (pooled.get(baseNormId(normId(card.id))) || 0) : owned;
+      masterHave  += Math.min(count, target);
     }
   }
 
@@ -437,6 +465,7 @@ function copyList() {
 }
 
 function filteredCards() {
+  const pooled = buildPooledMap(); // null in unique mode
   let cards = cardsForSet(state.selectedSet).filter(c => state.showExtras || !isExtraCard(c));
   const rF = state.chipRarity || state.filterRarity;
   const tF = state.chipType   || state.filterType;
@@ -445,8 +474,8 @@ function filteredCards() {
   if (tF) cards = cards.filter(c => (c.cardType?.type || []).some(ct => ct.id === tF));
   if (dF) cards = cards.filter(c => (c.domain?.values || []).some(d => d.id === dF));
   // Chip filters come from "Missing by …" sections — respect current view mode
-  if (state.chipRarity || state.chipType || state.chipDomain) cards = cards.filter(c => isMissingForMode(c));
-  if (state.filterMissing) cards = cards.filter(c => isMissingForMode(c));
+  if (state.chipRarity || state.chipType || state.chipDomain) cards = cards.filter(c => isMissingForMode(c, pooled));
+  if (state.filterMissing) cards = cards.filter(c => isMissingForMode(c, pooled));
   if (state.filterTrade)   cards = cards.filter(c => (state.userCards[normId(c.id)]?.trade || 0) > 0);
   if (state.filterWish)    cards = cards.filter(c => (state.userCards[normId(c.id)]?.wish  || 0) > 0);
   return cards;
@@ -681,10 +710,12 @@ const CardGrid = {
         ]),
         m('button.adv-clear', { onclick: clearFilters }, 'Reset'),
       ]) : null,
-      m('.card-grid', cards.map(card => {
+      m('.card-grid', (() => {
+        const pooled = buildPooledMap();
+        return cards.map(card => {
         const u      = state.userCards[normId(card.id)] || {};
         const owned  = (u.normal || 0) + (u.foil || 0);
-        const missing = hasUser && isMissingForMode(card);
+        const missing = hasUser && isMissingForMode(card, pooled);
         return m('.cg-card', {
           key: card.id,
           class: missing ? 'missing' : '',
@@ -716,7 +747,8 @@ const CardGrid = {
             ]) : null,
           ]),
         ]);
-      })),
+      });
+      })()),
     ]);
   },
 };
