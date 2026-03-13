@@ -4,15 +4,34 @@ import { getCardCatalog } from '../../shared/cardCatalog.js';
 // -- Constants ---------------------------------------------------
 const DOTGG_API     = 'https://riftboundindex.com/api/collection';
 const USER_TTL      = 15 * 60 * 1000; // 15 min
-const CORS_PROXY    = url => `https://corsproxy.io/?${encodeURIComponent(url)}`;
 const DECKS_KEY     = 'rb_decks';
 const SECTION_ORDER = ['LEGEND','CHAMPION','UNIT','GEAR','SPELL','BATTLEFIELDS','RUNES','SIDEBOARD'];
+
+// Fetch a URL through CORS proxy with automatic fallback
+async function proxyFetch(url) {
+  if (import.meta.env.DEV) {
+    return fetch(`/riftdecks-proxy${new URL(url).pathname}`);
+  }
+  const candidates = [
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://thingproxy.freeboard.io/fetch/${url}`,
+  ];
+  for (const proxyUrl of candidates) {
+    try {
+      const res = await fetch(proxyUrl);
+      if (res.ok) return res;
+    } catch (_) { /* try next */ }
+  }
+  throw new Error('Could not fetch deck page — all proxies failed. Try again later.');
+}
 
 // -- State -------------------------------------------------------
 const state = {
   phase:         'loading',  // 'loading' | 'ready'
   catalog:       [],
   nameMap:       new Map(),  // lower-case name → normId
+  nameSlugMap:   new Map(),  // slugified name → normId
   userCards:     {},
   transitOrders: JSON.parse(localStorage.getItem('rb_transit_orders') || '[]'),
   wantOrders:    JSON.parse(localStorage.getItem('rb_want_orders')    || '[]'),
@@ -65,6 +84,7 @@ function deckStats(deck) {
   const missing = [];   // { qty, name } pairs where more copies are needed
 
   for (const section of deck.sections) {
+    if (section.type === 'RUNES') continue;   // runes are always owned
     for (const card of section.cards) {
       if (!card.normId) {
         // unmatched — treat as 0 owned, qty needed
@@ -87,20 +107,30 @@ function deckStats(deck) {
 }
 
 // -- Deck parsing ------------------------------------------------
+// Normalize a card name for fuzzy matching: lowercase, strip spaces/commas/apostrophes/hyphens
+function slugify(name) {
+  return name.toLowerCase().replace(/[\s,'.\-]/g, '');
+}
+
 function buildNameMap(catalog) {
-  const map = new Map();
+  const map    = new Map();  // exact lowercase name → normId
+  const slugMap = new Map(); // slugified name → normId
   for (const c of catalog) {
     if (!c.name) continue;
     // normId: e.g. "ogn-001-298" → "OGN-001"
     const parts = c.id.split('-');
     const nId   = `${parts[0]}-${parts[1]}`.toUpperCase();
     map.set(c.name.trim().toLowerCase(), nId);
+    slugMap.set(slugify(c.name), nId);
   }
+  state.nameSlugMap = slugMap;
   return map;
 }
 
 function resolveNormId(name) {
-  return state.nameMap.get(name.trim().toLowerCase()) || null;
+  return state.nameMap.get(name.trim().toLowerCase())
+      || state.nameSlugMap?.get(slugify(name))
+      || null;
 }
 
 const SECTION_HEADER_RE = /^(LEGEND|CHAMPION|UNIT|GEAR|SPELL|BATTLEFIELDS|RUNES|SIDEBOARD)\s*\(/i;
@@ -134,8 +164,9 @@ function parseDeckHtml(html) {
   let currentSection = null;
   const unmatched    = [];
 
-  // Walk every table row in the document
-  const rows = Array.from(doc.querySelectorAll('tr'));
+  // Walk only rows inside #decklist — ignore everything outside that table
+  const decklistEl = doc.querySelector('#decklist') || doc.body;
+  const rows = Array.from(decklistEl.querySelectorAll('tr'));
   for (const row of rows) {
     const cells = Array.from(row.querySelectorAll('td, th')).map(c => c.textContent.trim());
     if (!cells.length) continue;
@@ -260,8 +291,7 @@ async function fetchAndAddDeck(url) {
   m.redraw();
 
   try {
-    const proxyUrl = CORS_PROXY(url);
-    const res      = await fetch(proxyUrl);
+    const res  = await proxyFetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status} fetching deck page`);
     const html  = await res.text();
     const parsed = parseDeckHtml(html);
@@ -442,13 +472,13 @@ const DeckCard = {
         ...deck.sections.map(section => {
           const secOwn  = section.cards.reduce((s, c) => s + (c.normId ? Math.min(ownedOf(c.normId), c.qty) : 0), 0);
           const secNeed = section.cards.reduce((s, c) => s + c.qty, 0);
-          return m('.deck-section', { key: section.type }, [
+          return m('.deck-section', [  // no key — avoids mixed-key fragment error
             m('.section-head', [
               m('span.section-type', section.type),
               m('span.section-count', `(${secNeed})`),
               m('span.section-progress', `${secOwn}/${secNeed}`),
             ]),
-            ...section.cards.map(card => m(SectionRow, { key: card.name, card })),
+            ...section.cards.map(card => m(SectionRow, { card })),
           ]);
         }),
       ]) : null,

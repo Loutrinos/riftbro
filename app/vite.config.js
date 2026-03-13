@@ -5,6 +5,13 @@ export default defineConfig({
   publicDir: '../images',
   server: {
     port: 5173,
+    proxy: {
+      '/dotgg-proxy': {
+        target: 'https://api.dotgg.gg',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/dotgg-proxy/, ''),
+      },
+    },
   },
   build: {
     outDir: '../dist/app',

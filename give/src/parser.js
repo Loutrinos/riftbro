@@ -1,4 +1,4 @@
-const API_URL = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
+const API_URL = 'https://riftboundindex.com/api/collection'; // CORS-enabled, no proxy needed
 
 /**
  * Fetches a user's full collection from the dotgg API via a CORS proxy.
@@ -9,11 +9,9 @@ const API_URL = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
  *   Each Map is keyed by card ID (e.g. "OGN-001") with { quantity, imageUrl, cardUrl }
  */
 export async function fetchUserList(username) {
-  const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(API_URL)}`;
-
   let res;
   try {
-    res = await fetch(proxyUrl, {
+    res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username }),

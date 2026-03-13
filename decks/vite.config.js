@@ -5,6 +5,13 @@ export default defineConfig({
   publicDir: '../images',
   server: {
     port: 5177,
+    proxy: {
+      '/riftdecks-proxy': {
+        target: 'https://riftdecks.com',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/riftdecks-proxy/, ''),
+      },
+    },
   },
   build: {
     outDir: '../dist/decks',

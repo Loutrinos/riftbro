@@ -4,8 +4,7 @@ import { getCardCatalog } from '../shared/cardCatalog.js';
 import { addUser, getUsers } from '../shared/savedUsers.js';
 
 // -- Constants --
-const DOTGG_ENDPOINT = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
-const DOTGG_API = `https://corsproxy.io/?url=${encodeURIComponent(DOTGG_ENDPOINT)}`;
+const DOTGG_API = 'https://riftboundindex.com/api/collection'; // CORS-enabled, no proxy needed
 const USER_TTL = 30 * 60 * 1000; // 30 min
 
 const SETS = [
