@@ -6,10 +6,15 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/dotgg-proxy': {
+      '/api-proxy/riftdecks': {
+        target: 'https://riftdecks.com',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api-proxy\/riftdecks/, ''),
+      },
+      '/api-proxy': {
         target: 'https://api.dotgg.gg',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/dotgg-proxy/, ''),
+        rewrite: path => path.replace(/^\/api-proxy/, ''),
       },
     },
   },

@@ -2,7 +2,16 @@ import m from 'mithril';
 import { getCardCatalog } from '../../shared/cardCatalog.js';
 
 // -- Constants ---------------------------------------------------
-const DOTGG_API     = 'https://riftboundindex.com/api/collection';
+const DOTGG_BASE    = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
+const DOTGG_API     = import.meta.env.DEV
+  ? '/api-proxy/cgfw/getuserdata?game=riftbound'
+  : DOTGG_BASE;
+
+function dotggUrl(username) {
+  const encoded = encodeURIComponent(username);
+  if (import.meta.env.DEV) return `${DOTGG_API}&username=${encoded}`;
+  return `https://corsproxy.io/?${encodeURIComponent(`${DOTGG_BASE}&username=${username}`)}`;
+}
 const USER_TTL      = 15 * 60 * 1000; // 15 min
 const DECKS_KEY     = 'rb_decks';
 const SECTION_ORDER = ['LEGEND','CHAMPION','UNIT','GEAR','SPELL','BATTLEFIELDS','RUNES','SIDEBOARD'];
@@ -10,7 +19,7 @@ const SECTION_ORDER = ['LEGEND','CHAMPION','UNIT','GEAR','SPELL','BATTLEFIELDS',
 // Fetch a URL through CORS proxy with automatic fallback
 async function proxyFetch(url) {
   if (import.meta.env.DEV) {
-    return fetch(`/riftdecks-proxy${new URL(url).pathname}`);
+    return fetch(`/api-proxy/riftdecks${new URL(url).pathname}`);
   }
   const candidates = [
     `https://corsproxy.io/?${encodeURIComponent(url)}`,
@@ -240,11 +249,7 @@ async function loadUserCollection() {
     } catch (_) { /* fall through */ }
   }
 
-  const res  = await fetch('https://riftboundindex.com/api/collection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username }),
-  });
+  const res  = await fetch(dotggUrl(username));
   if (!res.ok) return;
   const data = await res.json();
   if (!data.collection || !Array.isArray(data.collection)) return;

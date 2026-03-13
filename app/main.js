@@ -4,7 +4,18 @@ import { getCardCatalog } from '../shared/cardCatalog.js';
 import { addUser, getUsers } from '../shared/savedUsers.js';
 
 // -- Constants --
-const DOTGG_API = 'https://riftboundindex.com/api/collection'; // CORS-enabled, no proxy needed
+const DOTGG_BASE = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
+const DOTGG_API = import.meta.env.DEV
+  ? '/api-proxy/cgfw/getuserdata?game=riftbound'
+  : DOTGG_BASE;
+
+function dotggUrl(username) {
+  const base = DOTGG_API;
+  const encoded = encodeURIComponent(username);
+  if (import.meta.env.DEV) return `${base}&username=${encoded}`;
+  // Production: wrap full target URL in corsproxy.io
+  return `https://corsproxy.io/?${encodeURIComponent(`${DOTGG_BASE}&username=${username}`)}`;
+}
 const USER_TTL = 30 * 60 * 1000; // 30 min
 
 const SETS = [
@@ -324,11 +335,7 @@ async function loadUserCollection(username, bust = false) {
       // cached empty — refetch
     }
   }
-  const res = await fetch(DOTGG_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username }),
-  });
+  const res = await fetch(dotggUrl(username));
   if (!res.ok) throw new Error(`API error ${res.status}`);
   const data = await res.json();
   if (!data.collection || !Array.isArray(data.collection))

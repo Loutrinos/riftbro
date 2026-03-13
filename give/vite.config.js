@@ -6,10 +6,10 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      '/dotgg-proxy': {
+      '/api-proxy': {
         target: 'https://api.dotgg.gg',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/dotgg-proxy/, ''),
+        rewrite: path => path.replace(/^\/api-proxy/, ''),
       },
     },
   },
