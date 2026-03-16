@@ -1,15 +1,15 @@
 const API_BASE = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
 const API_DEV  = '/api-proxy/cgfw/getuserdata?game=riftbound';
 
-const POST_OPTS = username => ({
+const postOpts = (username, simple = false) => ({
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': simple ? 'text/plain' : 'application/json' },
   body: JSON.stringify({ username }),
 });
 
 async function fetchCollection(username) {
   if (import.meta.env.DEV) {
-    return fetch(API_DEV, POST_OPTS(username));
+    return fetch(API_DEV, postOpts(username));
   }
   const encoded = encodeURIComponent(API_BASE);
   const proxies = [
@@ -17,7 +17,7 @@ async function fetchCollection(username) {
     `https://corsproxy.org/?url=${encoded}`,
   ];
   for (const url of proxies) {
-    try { const r = await fetch(url, POST_OPTS(username)); if (r.ok) return r; } catch (_) {}
+    try { const r = await fetch(url, postOpts(username, true)); if (r.ok) return r; } catch (_) {}
   }
   throw new Error('Could not reach the collection API. All proxies failed.');
 }
