@@ -5,13 +5,18 @@ import { getCardCatalog } from '../../shared/cardCatalog.js';
 const DOTGG_BASE    = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
 const DOTGG_DEV     = '/api-proxy/cgfw/getuserdata?game=riftbound';
 
+const POST_OPTS = username => ({
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username }),
+});
+
 async function fetchCollection(username) {
-  const encoded = encodeURIComponent(`${DOTGG_BASE}&username=${encodeURIComponent(username)}`);
   if (import.meta.env.DEV) {
-    return fetch(`${DOTGG_DEV}&username=${encodeURIComponent(username)}`);
+    return fetch(DOTGG_DEV, POST_OPTS(username));
   }
+  const encoded = encodeURIComponent(DOTGG_BASE);
   const proxies = [
-    `https://api.codetabs.com/v1/proxy/?quest=${encoded}`,
     `https://corsproxy.io/?${encoded}`,
     `https://corsproxy.org/?url=${encoded}`,
   ];
