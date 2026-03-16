@@ -62,6 +62,14 @@ jobs:
         env:
           VITE_BASE: /riftbro/scan/
 
+      - name: Install decks/ dependencies
+        run: npm ci
+        working-directory: decks
+
+      - name: Build decks/ app
+        run: npm run build
+        working-directory: decks
+
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
