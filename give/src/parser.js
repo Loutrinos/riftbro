@@ -1,10 +1,20 @@
 const API_BASE = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
 const API_DEV  = '/api-proxy/cgfw/getuserdata?game=riftbound';
 
-function dotggUrl(username) {
-  const encoded = encodeURIComponent(username);
-  if (import.meta.env.DEV) return `${API_DEV}&username=${encoded}`;
-  return `https://corsproxy.io/?${encodeURIComponent(`${API_BASE}&username=${username}`)}`;
+async function fetchCollection(username) {
+  const encoded = encodeURIComponent(`${API_BASE}&username=${encodeURIComponent(username)}`);
+  if (import.meta.env.DEV) {
+    return fetch(`${API_DEV}&username=${encodeURIComponent(username)}`);
+  }
+  const proxies = [
+    `https://api.codetabs.com/v1/proxy/?quest=${encoded}`,
+    `https://corsproxy.io/?${encoded}`,
+    `https://corsproxy.org/?url=${encoded}`,
+  ];
+  for (const url of proxies) {
+    try { const r = await fetch(url); if (r.ok) return r; } catch (_) {}
+  }
+  throw new Error('Could not reach the collection API. All proxies failed.');
 }
 
 /**
@@ -18,7 +28,7 @@ function dotggUrl(username) {
 export async function fetchUserList(username) {
   let res;
   try {
-    res = await fetch(dotggUrl(username));
+    res = await fetchCollection(username);
   } catch (err) {
     throw new Error(`Network error fetching data for "${username}": ${err.message}`);
   }

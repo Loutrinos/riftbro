@@ -1,20 +1,30 @@
 ﻿// main.js — Collection Dashboard (no auth required)
-import m from 'https://esm.sh/mithril@2.2.2';
+import m from 'mithril';
 import { getCardCatalog } from '../shared/cardCatalog.js';
 import { addUser, getUsers } from '../shared/savedUsers.js';
 
 // -- Constants --
 const DOTGG_BASE = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
-const DOTGG_API = import.meta.env.DEV
-  ? '/api-proxy/cgfw/getuserdata?game=riftbound'
-  : DOTGG_BASE;
+const DOTGG_DEV  = '/api-proxy/cgfw/getuserdata?game=riftbound';
 
-function dotggUrl(username) {
-  const base = DOTGG_API;
-  const encoded = encodeURIComponent(username);
-  if (import.meta.env.DEV) return `${base}&username=${encoded}`;
-  // Production: wrap full target URL in corsproxy.io
-  return `https://corsproxy.io/?${encodeURIComponent(`${DOTGG_BASE}&username=${username}`)}`;
+async function fetchCollection(username) {
+  const encoded = encodeURIComponent(`${DOTGG_BASE}&username=${encodeURIComponent(username)}`);
+  if (import.meta.env.DEV) {
+    return fetch(`${DOTGG_DEV}&username=${encodeURIComponent(username)}`);
+  }
+  // Production: try proxies in order
+  const proxies = [
+    `https://api.codetabs.com/v1/proxy/?quest=${encoded}`,
+    `https://corsproxy.io/?${encoded}`,
+    `https://corsproxy.org/?url=${encoded}`,
+  ];
+  for (const url of proxies) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) return r;
+    } catch (_) { /* try next */ }
+  }
+  throw new Error('Could not reach the collection API. All proxies failed.');
 }
 const USER_TTL = 30 * 60 * 1000; // 30 min
 
@@ -335,7 +345,7 @@ async function loadUserCollection(username, bust = false) {
       // cached empty — refetch
     }
   }
-  const res = await fetch(dotggUrl(username));
+  const res = await fetchCollection(username);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   const data = await res.json();
   if (!data.collection || !Array.isArray(data.collection))

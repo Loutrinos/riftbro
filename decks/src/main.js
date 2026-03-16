@@ -3,14 +3,22 @@ import { getCardCatalog } from '../../shared/cardCatalog.js';
 
 // -- Constants ---------------------------------------------------
 const DOTGG_BASE    = 'https://api.dotgg.gg/cgfw/getuserdata?game=riftbound';
-const DOTGG_API     = import.meta.env.DEV
-  ? '/api-proxy/cgfw/getuserdata?game=riftbound'
-  : DOTGG_BASE;
+const DOTGG_DEV     = '/api-proxy/cgfw/getuserdata?game=riftbound';
 
-function dotggUrl(username) {
-  const encoded = encodeURIComponent(username);
-  if (import.meta.env.DEV) return `${DOTGG_API}&username=${encoded}`;
-  return `https://corsproxy.io/?${encodeURIComponent(`${DOTGG_BASE}&username=${username}`)}`;
+async function fetchCollection(username) {
+  const encoded = encodeURIComponent(`${DOTGG_BASE}&username=${encodeURIComponent(username)}`);
+  if (import.meta.env.DEV) {
+    return fetch(`${DOTGG_DEV}&username=${encodeURIComponent(username)}`);
+  }
+  const proxies = [
+    `https://api.codetabs.com/v1/proxy/?quest=${encoded}`,
+    `https://corsproxy.io/?${encoded}`,
+    `https://corsproxy.org/?url=${encoded}`,
+  ];
+  for (const url of proxies) {
+    try { const r = await fetch(url); if (r.ok) return r; } catch (_) {}
+  }
+  throw new Error('Could not reach the collection API. All proxies failed.');
 }
 const USER_TTL      = 15 * 60 * 1000; // 15 min
 const DECKS_KEY     = 'rb_decks';
@@ -249,7 +257,7 @@ async function loadUserCollection() {
     } catch (_) { /* fall through */ }
   }
 
-  const res  = await fetch(dotggUrl(username));
+  const res  = await fetchCollection(username);
   if (!res.ok) return;
   const data = await res.json();
   if (!data.collection || !Array.isArray(data.collection)) return;

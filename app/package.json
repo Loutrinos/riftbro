@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "firebase": "^9.22.0",
+    "mithril": "^2.2.2",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
