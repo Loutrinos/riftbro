@@ -37,6 +37,7 @@ const SETS = [
   { id: 'OGN', label: 'Origins',         code: 'OGN' },
   { id: 'SFD', label: 'Spiritforged',    code: 'SFD' },
   { id: 'OGS', label: 'Proving Grounds', code: 'OGS' },
+  { id: 'UNL', label: 'Unleashed',       code: 'UNL' },
 ];
 
 // Maps Cardmarket expansion names to set codes
@@ -44,6 +45,7 @@ const EXPANSION_TO_CODE = {
   'Origins':         'OGN',
   'Spiritforged':    'SFD',
   'Proving Grounds': 'OGS',
+  'Unleashed':       'UNL',
 };
 
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic'];

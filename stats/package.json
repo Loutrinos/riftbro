@@ -1,0 +1,18 @@
+{
+  "name": "riftbro-stats",
+  "version": "1.0.0",
+  "description": "Riftbound game statistics dashboard",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.4",
+    "mithril": "^2.2.2"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

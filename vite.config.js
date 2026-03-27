@@ -10,6 +10,7 @@ export default defineConfig({
       '/riftbro/give':  'http://localhost:5174',
       '/riftbro/match': 'http://localhost:5175',
       '/riftbro/decks': 'http://localhost:5177',
+      '/riftbro/stats': 'http://localhost:5178',
       '/api-proxy/riftdecks': {
         target: 'https://riftdecks.com',
         changeOrigin: true,
