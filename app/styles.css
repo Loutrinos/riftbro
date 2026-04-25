@@ -232,6 +232,30 @@ body {
 }
 .set-tab:hover  { color: var(--text); }
 .set-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.set-tab.skipped { opacity: 0.45; text-decoration: line-through; }
+
+/* Skip-set toggle ── sits flush after the tab label */
+.set-tab-wrap {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+.set-skip-btn {
+  display: flex;
+  align-items: center;
+  padding: 0 0.35rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  opacity: 0.3;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+  line-height: 1;
+}
+.set-tab-wrap:hover .set-skip-btn { opacity: 0.7; }
+.set-skip-btn.skipped { opacity: 1; color: #f87171; }
 
 /* -- Main body -------------------------------------------------- */
 .main-body {

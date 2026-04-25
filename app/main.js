@@ -143,6 +143,7 @@ const state = {
   chipDomain:    '',
   showImport:    false,
   transitOrders: JSON.parse(localStorage.getItem('rb_transit_orders') || '[]'),
+  skippedSets:   new Set(JSON.parse(localStorage.getItem('rb_skipped_sets') || '[]')),
   // ImportDialog working state
   importHtml:    '',
   importParsed:  null,  // { items, unmatched } after parse
@@ -216,6 +217,15 @@ function removeWantOrder(id) {
   localStorage.setItem('rb_want_orders', JSON.stringify(state.wantOrders));
 }
 
+function toggleSkipSet(setId) {
+  if (state.skippedSets.has(setId)) {
+    state.skippedSets.delete(setId);
+  } else {
+    state.skippedSets.add(setId);
+  }
+  localStorage.setItem('rb_skipped_sets', JSON.stringify([...state.skippedSets]));
+}
+
 function parseWantText(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const nameByNormId = new Map();
@@ -272,14 +282,14 @@ function parseCMOrderHtml(html) {
 
 // -- Data helpers --
 function ownedTotal(id) {
-  const nid    = normId(id);
-  const u      = state.userCards[nid];
-  const base   = u ? (u.normal || 0) + (u.foil || 0) : 0;
-  // Also count in-transit copies from saved orders
-  const tt     = transitTotals().get(nid) || { normal: 0, foil: 0 };
-  // Also count wanted copies
-  const wt     = wantTotals().get(nid) || 0;
-  return base + tt.normal + tt.foil + wt;
+  const nid          = normId(id);
+  const u            = state.userCards[nid];
+  const base         = u ? (u.normal || 0) + (u.foil || 0) : 0;
+  const tt           = transitTotals().get(nid) || { normal: 0, foil: 0 };
+  const transitCount = tt.normal + tt.foil;
+  const wt           = wantTotals().get(nid) || 0;
+  // In-transit copies already fulfil want orders — avoid double-counting
+  return base + transitCount + Math.max(0, wt - transitCount);
 }
 function isOwned(id) { return ownedTotal(id) > 0; }
 
@@ -308,9 +318,10 @@ function buildPooledMap() {
     const nId    = normId(c.id);
     const bId    = baseNormId(nId);
     const u      = state.userCards[nId] || {};
-    const trans  = tt.get(nId) || { normal: 0, foil: 0 };
-    const want   = wt.get(nId) || 0;
-    const owned  = (u.normal || 0) + (u.foil || 0) + trans.normal + trans.foil + want;
+    const trans        = tt.get(nId) || { normal: 0, foil: 0 };
+    const transitCount = trans.normal + trans.foil;
+    const want         = wt.get(nId) || 0;
+    const owned  = (u.normal || 0) + (u.foil || 0) + transitCount + Math.max(0, want - transitCount);
     map.set(bId, (map.get(bId) || 0) + owned);
   }
   return map;
@@ -360,7 +371,9 @@ async function loadUserCollection(username, bust = false) {
   state.userCards = {};
   for (const e of data.collection) {
     if (!e.card) continue;
-    state.userCards[e.card] = {
+    // Normalize key to uppercase so showcase variants (e.g. OGN-001a → OGN-001A)
+    // match the normId() output used everywhere else
+    state.userCards[e.card.toUpperCase()] = {
       normal: +e.standard || 0,
       foil:   +e.foil     || 0,
       trade:  +e.trade    || 0,
@@ -418,7 +431,11 @@ function cardsForSet(setId) {
 }
 
 function computeStats(setId) {
-  const base   = cardsForSet(setId).filter(c => state.showExtras || !isExtraCard(c));
+  let base = cardsForSet(setId).filter(c => state.showExtras || !isExtraCard(c));
+  // When viewing all sets, honour the per-set skip toggles
+  if (!setId || setId === 'all') {
+    base = base.filter(c => !state.skippedSets.has(c.set?.value?.id));
+  }
   const pooled = buildPooledMap(); // null in unique mode
   let uniqueTotal = 0, uniqueHave = 0;
   let masterTotal = 0, masterHave = 0;
@@ -569,8 +586,8 @@ const StatsPanel = {
     const stats = computeStats(state.selectedSet);
     return m('.stats-panel', [
       m('.progress-group', [
-        m(ProgressBar, { label: 'Unique', have: stats.uniqueHave, total: stats.uniqueTotal }),
-        m(ProgressBar, { label: 'Master Set', have: stats.masterHave, total: stats.masterTotal, accent: '#8b7fce' }),
+        m(ProgressBar, { label: 'Master Collection', have: stats.uniqueHave, total: stats.uniqueTotal }),
+        m(ProgressBar, { label: 'Play Set', have: stats.masterHave, total: stats.masterTotal, accent: '#8b7fce' }),
       ]),
       stats.rarityMiss.length ? m('.chip-group', [
         m('.chip-group-label', 'Missing by Rarity'),
@@ -675,11 +692,11 @@ const CardGrid = {
             m('button.view-tab', {
               class: state.viewMode === 'unique' ? 'active' : '',
               onclick: () => { state.viewMode = 'unique'; resetChips(); },
-            }, 'Unique'),
+            }, 'Master Collection'),
             m('button.view-tab', {
               class: state.viewMode === 'master' ? 'active' : '',
               onclick: () => { state.viewMode = 'master'; resetChips(); },
-            }, 'Master Set'),
+            }, 'Play Set'),
           ]),
           hasUser ? m('label.qf-label', { class: state.filterMissing ? 'active' : '' }, [
             m('input[type=checkbox]', {
@@ -997,12 +1014,18 @@ const MainScreen = {
           key: 'all',
           class: state.selectedSet === 'all' ? 'active' : '',
           onclick() { state.selectedSet = 'all'; resetChips(); },
-        }, 'All Sets'),
-        ...SETS.map(s => m('.set-tab', {
-          key: s.id,
-          class: state.selectedSet === s.id ? 'active' : '',
-          onclick() { state.selectedSet = s.id; resetChips(); },
-        }, `${s.code} \u2013 ${s.label}`)),
+        }, state.skippedSets.size ? `All Sets (${SETS.length - state.skippedSets.size}/${SETS.length})` : 'All Sets'),
+        ...SETS.map(s => m('.set-tab-wrap', { key: s.id }, [
+          m('.set-tab', {
+            class: [state.selectedSet === s.id ? 'active' : '', state.skippedSets.has(s.id) ? 'skipped' : ''].filter(Boolean).join(' '),
+            onclick() { state.selectedSet = s.id; resetChips(); },
+          }, `${s.code} \u2013 ${s.label}`),
+          m('button.set-skip-btn', {
+            title: state.skippedSets.has(s.id) ? 'Include in All Sets stats' : 'Exclude from All Sets stats',
+            class: state.skippedSets.has(s.id) ? 'skipped' : '',
+            onclick(e) { e.stopPropagation(); toggleSkipSet(s.id); m.redraw(); },
+          }, state.skippedSets.has(s.id) ? '\u2716' : '\u2716'),
+        ])),
       ]),
       m('.main-body', [
         state.userError  ? m('.user-error', `\u26A0 ${state.userError}`) : null,
