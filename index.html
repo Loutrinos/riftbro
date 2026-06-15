@@ -1,162 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Riftbro</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/png" href="%BASE_URL%logo.png">
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RiftBro — Track your Riftbound collection</title>
+  <meta name="description" content="RiftBro is the fastest way to track your Riftbound TCG collection. See what you're missing, manage incoming orders, and complete your master collection and play sets." />
+  <link rel="icon" type="image/png" href="/rb-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="landing.css" />
 </head>
 <body>
-  <canvas id="bg-canvas"></canvas>
-
-  <header>
-    <img src="logo.png" alt="Riftbro" class="logo">
-    <p>Riftbound companion tools</p>
+  <!-- ── Top navigation ─────────────────────────────────────────── -->
+  <header class="nav" id="nav">
+    <a class="brand" href="#top" aria-label="RiftBro home">
+      <img id="brandMark" class="brand-mark" src="/rb-icon.png" alt="" />
+      <span class="brand-text">Rift<b>Bro</b></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#collections">Collections</a>
+      <a href="#sets">Sets</a>
+      <a href="#features">Features</a>
+    </nav>
+    <a class="btn btn-launch" href="/riftbro/app/">Launch app <span class="arr">→</span></a>
   </header>
 
-  <main>
-    <a class="app-card" href="app/">
-      <div class="app-card-icon">🃏</div>
-      <div class="app-card-body">
-        <h2>Card Collection</h2>
-        <p>Track your Riftbound card collection, trades, and wishlist</p>
+  <!-- ── Hero ───────────────────────────────────────────────────── -->
+  <section class="hero" id="top">
+    <!-- Animated portal backdrop (CSS) — sits behind the provided hero media -->
+    <div class="portal" aria-hidden="true">
+      <span class="portal-ring r1"></span>
+      <span class="portal-ring r2"></span>
+      <span class="portal-ring r3"></span>
+      <span class="portal-core"></span>
+      <div class="sparks"></div>
+    </div>
+
+    <!--
+      HERO MEDIA — drop the provided animated hero here.
+      Place the file at images/hero.mp4 (and an optional images/hero.jpg poster).
+      It will be served from /riftbro/hero.mp4. If absent, the CSS portal shows.
+    -->
+    <video class="hero-media" autoplay muted loop playsinline poster="/hero.jpg">
+      <source src="/hero.mp4" type="video/mp4" />
+    </video>
+
+    <div class="hero-inner">
+      <span class="hero-logo-wrap reveal">
+        <img class="hero-logo" src="/rb-icon.png" alt="RiftBro" />
+      </span>
+      <p class="hero-tag reveal">Your companion for the <span>Riftbound</span> TCG</p>
+      <p class="hero-sub reveal">Track every card, see exactly what you're missing, and complete your
+        master collection and play sets — all from one fast, beautiful dashboard.</p>
+      <div class="hero-cta reveal">
+        <a class="btn btn-primary" href="/riftbro/app/">Open your collection <span class="arr">→</span></a>
+        <a class="btn btn-ghost" href="#collections">See how it works</a>
       </div>
-    </a>
-    <a class="app-card" href="give/">
-      <div class="app-card-icon">⇄</div>
-      <div class="app-card-body">
-        <h2>Trade Matcher</h2>
-        <p>Find which cards you and another player can trade with each other</p>
-      </div>
-    </a>
-    <a class="app-card" href="match/">
-      <div class="app-card-icon">⚔️</div>
-      <div class="app-card-body">
-        <h2>Match Companion</h2>
-        <p>Track points, timer and turns during a live Riftbound match</p>
-      </div>
-    </a>
-    <a class="app-card" href="scan/">
-      <div class="app-card-icon">📷</div>
-      <div class="app-card-body">
-        <h2>Card Scanner</h2>
-        <p>Point your camera at a card to identify it and build your scanned cards list</p>
-      </div>
-    </a>
-    <a class="app-card" href="decks/">
-      <div class="app-card-icon">📋</div>
-      <div class="app-card-body">
-        <h2>Deck Tracker</h2>
-        <p>Track top tournament decks and see how many cards you own toward completing each one</p>
-      </div>
-    </a>
-    <a class="app-card" href="stats/">
-      <div class="app-card-icon">📊</div>
-      <div class="app-card-body">
-        <h2>Game Statistics</h2>
-        <p>Track your win rates by day, deck played and opponent legend</p>
-      </div>
-    </a>
-  </main>
+      <div class="hero-note reveal">No account needed — just your riftbound.gg username.</div>
+    </div>
 
-  <script>
-    // ── Floating particles ────────────────────────────────────────────────────
-    const canvas = document.getElementById('bg-canvas');
-    const ctx = canvas.getContext('2d');
+    <a class="scroll-hint" href="#stats" aria-label="Scroll down"><span></span></a>
+  </section>
 
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    resize();
-    window.addEventListener('resize', resize);
+  <!-- ── Live stats band ────────────────────────────────────────── -->
+  <section class="stats" id="stats">
+    <div class="stat reveal">
+      <div class="stat-num" data-count id="statCards">0</div>
+      <div class="stat-label">Cards tracked</div>
+    </div>
+    <div class="stat reveal">
+      <div class="stat-num" data-count data-target="4" id="statSets">0</div>
+      <div class="stat-label">Sets covered</div>
+    </div>
+    <div class="stat reveal">
+      <div class="stat-num" data-count data-target="6" id="statDomains">0</div>
+      <div class="stat-label">Domains</div>
+    </div>
+    <div class="stat reveal">
+      <div class="stat-num" id="statModes">2</div>
+      <div class="stat-label">Collection modes</div>
+    </div>
+  </section>
 
-    function rand(a, b) { return a + Math.random() * (b - a); }
+  <!-- ── Collections feature ────────────────────────────────────── -->
+  <section class="section" id="collections">
+    <div class="section-head reveal">
+      <span class="eyebrow">Two ways to collect</span>
+      <h2>Built for completionists <br />and players alike</h2>
+      <p>Switch instantly between chasing one of everything and building the copies you
+        actually need to play. RiftBro does the math so you don't have to.</p>
+    </div>
 
-    function makeParticle() {
-      return {
-        x: rand(0, canvas.width),
-        y: rand(0, canvas.height),
-        r: rand(0.5, 2.0),
-        alpha: rand(0.08, 0.42),
-        speed: rand(0.1, 0.42),
-        drift: rand(-0.16, 0.16),
-        phase: rand(0, Math.PI * 2),
-        phaseSpeed: rand(0.008, 0.025),
-      };
-    }
+    <div class="split">
+      <article class="feature-card reveal">
+        <div class="fc-icon">◈</div>
+        <h3>Master Collection</h3>
+        <p>One of every card. RiftBro shows your completion per set, highlights every card
+          you're still missing, and tracks signed and showcase variants separately.</p>
+        <ul class="ticks">
+          <li>Per-set completion with two-decimal precision</li>
+          <li>Missing breakdown by rarity, type and color</li>
+          <li>Signed &amp; overnumbered variants handled</li>
+        </ul>
+      </article>
 
-    const particles = Array.from({ length: 90 }, makeParticle);
+      <article class="feature-card reveal">
+        <div class="fc-icon sword">⚔</div>
+        <h3>Play Set</h3>
+        <p>Three of every standard card, one of each legend and battlefield — exactly what
+          you need to build any deck. We pool your copies across variants automatically.</p>
+        <ul class="ticks">
+          <li>Smart targets per card type</li>
+          <li>Pooled counts across printings</li>
+          <li>Know the moment a set is deck-ready</li>
+        </ul>
+      </article>
+    </div>
+  </section>
 
-    (function tick() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (const p of particles) {
-        p.y -= p.speed;
-        p.x += p.drift;
-        p.phase += p.phaseSpeed;
-        const a = p.alpha * (0.55 + 0.45 * Math.sin(p.phase));
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(200,169,81,${a})`;
-        ctx.fill();
-        if (p.y < -10 || p.x < -20 || p.x > canvas.width + 20) {
-          Object.assign(p, makeParticle());
-          p.y = canvas.height + 10;
-          p.x = rand(0, canvas.width);
-        }
-      }
-      requestAnimationFrame(tick);
-    })();
+  <!-- ── Sets showcase ──────────────────────────────────────────── -->
+  <section class="section sets-section" id="sets">
+    <div class="section-head reveal">
+      <span class="eyebrow">Every expansion</span>
+      <h2>All Riftbound sets, in one place</h2>
+      <p>From Origins to the latest expansion — RiftBro updates automatically as new cards drop.</p>
+    </div>
 
-    // ── 3-D tilt on hover ────────────────────────────────────────────────────
-    document.querySelectorAll('.app-card').forEach(card => {
-      let raf;
-      let targetRX = 0, targetRY = 0, currentRX = 0, currentRY = 0;
-      let hovering = false;
+    <div class="set-cards" id="setCards">
+      <article class="set-card reveal" data-set="OGN">
+        <div class="set-code">OGN</div>
+        <h3>Origins</h3>
+        <div class="set-count"><b data-set-count="OGN">—</b> cards</div>
+        <div class="set-bar"><span></span></div>
+      </article>
+      <article class="set-card reveal" data-set="SFD">
+        <div class="set-code">SFD</div>
+        <h3>Spiritforged</h3>
+        <div class="set-count"><b data-set-count="SFD">—</b> cards</div>
+        <div class="set-bar"><span></span></div>
+      </article>
+      <article class="set-card reveal" data-set="OGS">
+        <div class="set-code">OGS</div>
+        <h3>Proving Grounds</h3>
+        <div class="set-count"><b data-set-count="OGS">—</b> cards</div>
+        <div class="set-bar"><span></span></div>
+      </article>
+      <article class="set-card reveal" data-set="UNL">
+        <div class="set-code">UNL</div>
+        <h3>Unleashed</h3>
+        <div class="set-count"><b data-set-count="UNL">—</b> cards</div>
+        <div class="set-bar"><span></span></div>
+      </article>
+    </div>
+  </section>
 
-      function lerp(a, b, t) { return a + (b - a) * t; }
+  <!-- ── Features grid ──────────────────────────────────────────── -->
+  <section class="section" id="features">
+    <div class="section-head reveal">
+      <span class="eyebrow">Everything you need</span>
+      <h2>A full collection toolkit</h2>
+    </div>
 
-      function animate() {
-        currentRX = lerp(currentRX, targetRX, 0.1);
-        currentRY = lerp(currentRY, targetRY, 0.1);
-        const scale = hovering ? 1.06 : 1.0;
-        const sc = lerp(parseFloat(card.dataset.sc || '1'), scale, 0.1);
-        card.dataset.sc = sc;
-        card.style.transform =
-          `perspective(700px) rotateY(${currentRY}deg) rotateX(${currentRX}deg) scale(${sc.toFixed(4)})`;
-        if (hovering || Math.abs(currentRX) > 0.02 || Math.abs(currentRY) > 0.02 || Math.abs(sc - scale) > 0.001) {
-          raf = requestAnimationFrame(animate);
-        } else {
-          card.style.transform = '';
-          card.dataset.sc = '1';
-        }
-      }
+    <div class="feat-grid">
+      <div class="feat reveal"><div class="feat-ic">⌕</div><h4>Missing at a glance</h4><p>Instantly filter to only the cards you still need, per set or across your whole collection.</p></div>
+      <div class="feat reveal"><div class="feat-ic">⌛</div><h4>Incoming orders</h4><p>Add cards that are in transit so your missing list stays honest while packages are on the way.</p></div>
+      <div class="feat reveal"><div class="feat-ic">♥</div><h4>Want list</h4><p>Keep a running hunt list and copy it in one tap when you're ready to trade.</p></div>
+      <div class="feat reveal"><div class="feat-ic">⇄</div><h4>Trade &amp; wishlist</h4><p>See your tradeable extras and wishlist pulled straight from your riftbound.gg profile.</p></div>
+      <div class="feat reveal"><div class="feat-ic">⎘</div><h4>One-tap export</h4><p>Copy any filtered view as a clean list to share or paste anywhere.</p></div>
+      <div class="feat reveal"><div class="feat-ic">◷</div><h4>Always current</h4><p>Card data refreshes automatically, so new sets and reprints show up the moment they land.</p></div>
+    </div>
+  </section>
 
-      card.addEventListener('mousemove', e => {
-        const rect = card.getBoundingClientRect();
-        const dx = (e.clientX - (rect.left + rect.width  / 2)) / (rect.width  / 2);
-        const dy = (e.clientY - (rect.top  + rect.height / 2)) / (rect.height / 2);
-        targetRY =  dx * 14;
-        targetRX = -dy * 10;
-      });
+  <!-- ── Closing CTA ────────────────────────────────────────────── -->
+  <section class="cta-band reveal">
+    <div class="cta-portal" aria-hidden="true"></div>
+    <div class="cta-inner">
+      <img class="cta-mark" id="ctaMark" src="/rb-icon.png" alt="" />
+      <h2>Ready to complete your collection?</h2>
+      <p>Open RiftBro, type your username, and watch your collection come to life.</p>
+      <a class="btn btn-primary lg" href="/riftbro/app/">Launch RiftBro <span class="arr">→</span></a>
+    </div>
+  </section>
 
-      card.addEventListener('mouseenter', () => {
-        hovering = true;
-        cancelAnimationFrame(raf);
-        animate();
-      });
+  <footer class="footer">
+    <div class="footer-brand">
+      <img class="brand-mark sm" src="/rb-icon.png" alt="" />
+      <span class="brand-text">Rift<b>Bro</b></span>
+    </div>
+    <p class="footer-note">An unofficial fan-made companion for the Riftbound TCG. Not affiliated with Riot Games.</p>
+  </footer>
 
-      card.addEventListener('mouseleave', () => {
-        hovering = false;
-        targetRX = 0;
-        targetRY = 0;
-        animate();
-      });
-    });
-  </script>
+  <script type="module" src="landing.js"></script>
 </body>
 </html>

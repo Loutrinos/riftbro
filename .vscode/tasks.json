@@ -60,13 +60,7 @@
     {
       "label": "Dev: All Apps",
       "dependsOn": [
-        "Dev: Hub (5172)",
-        "Dev: App (5173)",
-        "Dev: Give (5174)",
-        "Dev: Match (5175)",
-        "Dev: Scan (5176)",
-        "Dev: Decks (5177)",
-        "Dev: Stats (5178)"
+        "Dev: App (5173)"
       ],
       "dependsOrder": "parallel",
       "problemMatcher": [],
