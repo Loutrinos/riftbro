@@ -105,7 +105,7 @@ const state = {
   selectedSet:  'all',
   viewMode:     'unique',  // 'unique' = Master Collection · 'master' = Play Set
   density:      localStorage.getItem('rb_density') || 'comfortable',
-  theme:        localStorage.getItem('rb_theme') || 'light',
+  theme:        localStorage.getItem('rb_theme') || 'dark',
   selectedCard: null,
   loadError:    null,
   userError:    null,  showExtras:   false,
@@ -131,6 +131,7 @@ const state = {
   mobileSets:     false,    // set-tiles strip expanded
   mobileFilters:  false,    // filters/orders drawer open
   headerMenuOpen: false,    // mobile header dropdown
+  breakdownOpen:  false,    // missing breakdown collapsed by default
 };
 if (state.username) state.phase = 'loading';
 
@@ -613,25 +614,31 @@ const Breakdown = {
     const maxR = Math.max(1, ...s.rarityMiss.map(r => r.count));
     const maxT = Math.max(1, ...s.typeMiss.map(t => t.count));
     const maxD = Math.max(1, ...s.domainMiss.map(d => d.count));
-    return m('.panel', [
-      m('.panel-head', [
+    const open = state.breakdownOpen;
+    return m('.panel', { class: open ? '' : 'collapsed' }, [
+      m('button.panel-head.panel-toggle', { onclick: () => state.breakdownOpen = !state.breakdownOpen }, [
         m('h2.panel-title', 'Missing breakdown'),
-        m('span.panel-badge', state.selectedSet === 'all' ? 'All sets' : state.selectedSet),
+        m('.panel-head-right', [
+          m('span.panel-badge', state.selectedSet === 'all' ? 'All sets' : state.selectedSet),
+          m('span.panel-chevron', open ? '\u25B2' : '\u25BC'),
+        ]),
       ]),
-      m('p.panel-hint', { style: { marginBottom: '12px' } }, 'Tap a row to filter the grid.'),
-      s.rarityMiss.length ? m('.facet-group', [
-        m('.facet-group-label', 'By rarity'),
-        s.rarityMiss.map(r => facetRow('rarity', r, RARITY_COLOR[r.id] || '#8A92A0', maxR, true)),
+      open ? m('div', [
+        m('p.panel-hint', { style: { marginBottom: '12px' } }, 'Tap a row to filter the grid.'),
+        s.rarityMiss.length ? m('.facet-group', [
+          m('.facet-group-label', 'By rarity'),
+          s.rarityMiss.map(r => facetRow('rarity', r, RARITY_COLOR[r.id] || '#8A92A0', maxR, true)),
+        ]) : null,
+        s.typeMiss.length ? m('.facet-group', [
+          m('.facet-group-label', 'By type'),
+          s.typeMiss.map(t => facetRow('type', t, '#5B53E0', maxT, false)),
+        ]) : null,
+        s.domainMiss.length ? m('.facet-group', [
+          m('.facet-group-label', 'By color'),
+          s.domainMiss.map(d => facetRow('domain', d, DOMAIN_COLOR[d.id] || '#8A92A0', maxD, false)),
+        ]) : null,
+        !hasAny ? m('.empty-good', [m('span', '\u2713'), ' Every card here is collected. Nice.']) : null,
       ]) : null,
-      s.typeMiss.length ? m('.facet-group', [
-        m('.facet-group-label', 'By type'),
-        s.typeMiss.map(t => facetRow('type', t, '#5B53E0', maxT, false)),
-      ]) : null,
-      s.domainMiss.length ? m('.facet-group', [
-        m('.facet-group-label', 'By color'),
-        s.domainMiss.map(d => facetRow('domain', d, DOMAIN_COLOR[d.id] || '#8A92A0', maxD, false)),
-      ]) : null,
-      !hasAny ? m('.empty-good', [m('span', '\u2713'), ' Every card here is collected. Nice.']) : null,
     ]);
   },
 };
@@ -742,10 +749,12 @@ const CardGrid = {
       const missing = hasUser && isMissingForMode(card, pooled);
       const owned = ownedTotal(card.id);
       const foil = (u.foil || 0) > 0;
+      const wish = u.wish || 0;
       return m('button.tile', { key: card.id, class: missing ? 'missing' : '', onclick: () => state.selectedCard = card }, [
         m('.tile-art', [
           ...tileArt(card, { missing }),
           foil ? m('span.tile-foil', '\u2726') : null,
+          wish ? m('span.tile-wish', { title: `${wish} on wishlist` }, [m('span.tile-wish-ic', '\u2665'), wish]) : null,
           m('span.tile-status', { class: missing ? 'need' : '' }, missing ? 'NEED' : `\u00d7${owned}`),
         ]),
         m('.tile-foot', [
@@ -920,9 +929,9 @@ const MainScreen = {
               m('button.drawer-close', { onclick: () => state.mobileFilters = false }, '\u2715'),
             ]),
             m('.drawer-scroll', [
-              m(Breakdown),
               m(TransitPanel),
               m(WantPanel),
+              m(Breakdown),
             ]),
             m('button.drawer-done', { onclick: () => state.mobileFilters = false }, 'View cards'),
           ]),

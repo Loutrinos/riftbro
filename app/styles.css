@@ -11,10 +11,13 @@
   --brand:     #8B5CF6;
   --brand-dk:  #7C3AED;
   --brand-sf:  #F2EDFE;
+  --brand2:    #3D7BF7;
+  --brand2-dk: #2563EB;
+  --grad:      linear-gradient(118deg, #8B5CF6 0%, #3D7BF7 100%);
   --good:      #16A34A;
   --warn:      #E0930B;
   --danger:    #E5484D;
-  --sky:       #7C5CFA;
+  --sky:       #2E86E6;
   --shadow:    0 1px 2px rgba(27,23,38,0.04);
   --shadow-md: 0 8px 20px -10px rgba(27,23,38,0.18);
   --shadow-lg: 0 30px 80px -20px rgba(27,23,38,0.45);
@@ -42,10 +45,13 @@
   --brand:     #A78BFA;
   --brand-dk:  #8B5CF6;
   --brand-sf:  #241B3B;
+  --brand2:    #5B9BFF;
+  --brand2-dk: #3D7BF7;
+  --grad:      linear-gradient(118deg, #A78BFA 0%, #5B9BFF 100%);
   --good:      #3FBF6B;
   --warn:      #F0A93B;
   --danger:    #F0676C;
-  --sky:       #A78BFA;
+  --sky:       #5B9BFF;
   --shadow:    0 1px 2px rgba(0,0,0,0.4);
   --shadow-md: 0 8px 20px -10px rgba(0,0,0,0.6);
   --shadow-lg: 0 30px 80px -20px rgba(0,0,0,0.8);
@@ -109,7 +115,14 @@ button, input, textarea { font-family: inherit; }
   font-size: 20px;
   letter-spacing: -0.02em;
 }
-.brand-name b { color: var(--brand); font-weight: 700; }
+.brand-name b {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--brand);
+  font-weight: 700;
+}
 
 .theme-toggle {
   flex-shrink: 0;
@@ -176,7 +189,7 @@ button, input, textarea { font-family: inherit; }
 
 .btn-primary {
   border: none;
-  background: var(--brand);
+  background: var(--grad);
   color: var(--on-brand);
   font-weight: 700;
   font-size: 13px;
@@ -187,9 +200,9 @@ button, input, textarea { font-family: inherit; }
   align-items: center;
   gap: 6px;
   box-shadow: 0 4px 12px -4px var(--brand-glow);
-  transition: background 0.15s;
+  transition: filter 0.15s;
 }
-.btn-primary:hover { background: var(--brand-dk); }
+.btn-primary:hover { filter: brightness(1.07); }
 
 .btn-ghost {
   border: 1px solid var(--line);
@@ -242,7 +255,7 @@ button, input, textarea { font-family: inherit; }
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
 }
-.view-toggle button.active { background: var(--brand); color: var(--on-brand); font-weight: 700; }
+.view-toggle button.active { background: var(--grad); color: var(--on-brand); font-weight: 700; }
 
 /* ── Set overview tiles ──────────────────────────────────────────── */
 .set-grid {
@@ -295,7 +308,7 @@ button, input, textarea { font-family: inherit; }
 .set-tile-missing.complete { color: var(--good); }
 .set-tile-misslabel { font-size: 12px; color: var(--faint); font-weight: 600; }
 .set-tile-bar { margin-top: 13px; height: 6px; background: var(--line2); border-radius: 99px; overflow: hidden; }
-.set-tile-bar-fill { height: 100%; border-radius: 99px; background: var(--brand); transition: width 0.5s; }
+.set-tile-bar-fill { height: 100%; border-radius: 99px; background: var(--grad); transition: width 0.5s; }
 .set-tile-bar-fill.complete { background: var(--good); }
 .set-tile-bot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
 .set-tile-have { font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
@@ -315,6 +328,13 @@ button, input, textarea { font-family: inherit; }
   box-shadow: var(--shadow);
 }
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+.panel-toggle {
+  width: 100%; border: none; background: none; cursor: pointer;
+  padding: 0; text-align: left; color: inherit; font: inherit;
+}
+.panel.collapsed .panel-head { margin-bottom: 0; }
+.panel-head-right { display: flex; align-items: center; gap: 8px; }
+.panel-chevron { font-size: 9px; color: var(--faint); }
 .panel-title {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 15px;
@@ -547,6 +567,18 @@ button, input, textarea { font-family: inherit; }
 }
 .card-grid.compact .tile-foil { top: 5px; left: 5px; font-size: 10px; }
 
+.tile-wish {
+  position: absolute; right: 7px; bottom: 7px;
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 800;
+  padding: 2px 6px; border-radius: 6px;
+  background: var(--danger); color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  font-variant-numeric: tabular-nums;
+}
+.tile-wish-ic { font-size: 9px; line-height: 1; }
+.card-grid.compact .tile-wish { right: 5px; bottom: 5px; font-size: 8.5px; padding: 2px 5px; gap: 2px; }
+
 .tile-status {
   position: absolute; left: 7px; bottom: 7px;
   font-size: 10px; font-weight: 800;
@@ -659,11 +691,11 @@ button, input, textarea { font-family: inherit; }
 }
 .field:focus { border-color: var(--brand); }
 .btn-solid {
-  border: none; background: var(--brand); color: var(--on-brand);
+  border: none; background: var(--grad); color: var(--on-brand);
   font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 10px;
-  cursor: pointer; white-space: nowrap; transition: background 0.15s;
+  cursor: pointer; white-space: nowrap; transition: filter 0.15s;
 }
-.btn-solid:hover { background: var(--brand-dk); }
+.btn-solid:hover { filter: brightness(1.07); }
 
 .saved-list { display: flex; flex-direction: column; gap: 7px; }
 .saved-list-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
