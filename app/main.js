@@ -62,7 +62,8 @@ const isAboveSet = c => {
 };
 const isOvernumbered = c => c.rarity?.value?.id === 'overnumbered';
 const isShowcase     = c => /[a-zA-Z]$/.test(c.id?.split('-')[1] || '');
-const isExtraCard    = c => isAboveSet(c) || isOvernumbered(c) || isShowcase(c);
+const isToken        = c => /^T\d+$/i.test(c.id?.split('-')[1] || '');
+const isExtraCard    = c => isAboveSet(c) || isOvernumbered(c) || isShowcase(c) || isToken(c);
 const isType = (c, t) => (c.cardType?.type || []).some(ct =>
   ct.id?.toLowerCase() === t || ct.label?.toLowerCase() === t);
 const isRune        = c => isType(c, 'rune');
@@ -319,8 +320,8 @@ function filteredCards() {
     }).filter(c => isMissingForMode(c, pooled));
   }
   if (state.missingOnly) cards = cards.filter(c => isMissingForMode(c, pooled));
-  if (state.forTrade)    cards = cards.filter(c => (state.userCards[normId(c.id)]?.trade || 0) > 0);
-  if (state.wishlist)    cards = cards.filter(c => (state.userCards[normId(c.id)]?.wish  || 0) > 0);
+  if (state.forTrade)    cards = cards.filter(c => { const u = state.userCards[normId(c.id)] || {}; return (u.trade || 0) + (u.tradeFoil || 0) > 0; });
+  if (state.wishlist)    cards = cards.filter(c => { const u = state.userCards[normId(c.id)] || {}; return (u.wish  || 0) + (u.wishFoil  || 0) > 0; });
   return cards;
 }
 function copyList() {
@@ -388,7 +389,7 @@ function setSummary(setId) {
 async function loadCards() { state.cards = await getCardCatalog(); }
 
 async function loadUserCollection(username, bust = false) {
-  const key = `rb_user_v2_${username}`, tsKey = `rb_user_v2_ts_${username}`;
+  const key = `rb_user_v3_${username}`, tsKey = `rb_user_v3_ts_${username}`;
   if (!bust) {
     const raw = localStorage.getItem(key), ts = localStorage.getItem(tsKey);
     if (raw && ts && Date.now() - +ts < USER_TTL) {
@@ -405,7 +406,12 @@ async function loadUserCollection(username, bust = false) {
   for (const e of data.collection) {
     if (!e.card) continue;
     state.userCards[e.card.toUpperCase()] = {
-      normal: +e.standard || 0, foil: +e.foil || 0, trade: +e.trade || 0, wish: +e.wish || 0,
+      normal:    +e.standard   || 0,
+      foil:      +e.foil       || 0,
+      trade:     +e.trade      || 0,
+      tradeFoil: +e.trade_foil || 0,
+      wish:      +e.wish       || 0,
+      wishFoil:  +e.wish_foil  || 0,
     };
   }
   if (Object.keys(state.userCards).length > 0) {
@@ -749,12 +755,12 @@ const CardGrid = {
       const missing = hasUser && isMissingForMode(card, pooled);
       const owned = ownedTotal(card.id);
       const foil = (u.foil || 0) > 0;
-      const wish = u.wish || 0;
+      const wish = (u.wish || 0) + (u.wishFoil || 0);
       return m('button.tile', { key: card.id, class: missing ? 'missing' : '', onclick: () => state.selectedCard = card }, [
         m('.tile-art', [
           ...tileArt(card, { missing }),
           foil ? m('span.tile-foil', '\u2726') : null,
-          wish ? m('span.tile-wish', { title: `${wish} on wishlist` }, [m('span.tile-wish-ic', '\u2665'), wish]) : null,
+          wish ? m('span.tile-wish', { title: `${wish} on wishlist${u.wishFoil ? ` (${u.wishFoil} foil)` : ''}` }, [m('span.tile-wish-ic', '\u2665'), wish]) : null,
           m('span.tile-status', { class: missing ? 'need' : '' }, missing ? 'NEED' : `\u00d7${owned}`),
         ]),
         m('.tile-foot', [
@@ -775,11 +781,13 @@ const CardModal = {
     const wt = wantTotals().get(normId(c.id));
     const dc = domainColor(c), rc = rarityColor(c), img = c.cardImage?.url;
     const counts = [
-      { val: u.normal || 0, label: 'Normal', color: '#1A1D26' },
-      { val: u.foil   || 0, label: 'Foil',   color: '#E0930B' },
+      { val: u.normal || 0, label: 'Normal', color: 'var(--ink)' },
+      { val: u.foil   || 0, label: 'Foil \u2726',   color: '#E0930B' },
       { val: u.trade  || 0, label: 'Trade',  color: '#0C8CE0' },
-      { val: u.wish   || 0, label: 'Wish',   color: '#E5484D' },
     ];
+    if (u.tradeFoil) counts.push({ val: u.tradeFoil, label: 'Trade \u2726', color: '#0C8CE0' });
+    counts.push({ val: u.wish || 0, label: 'Wish', color: '#E5484D' });
+    if (u.wishFoil) counts.push({ val: u.wishFoil, label: 'Wish \u2726', color: '#E5484D' });
     if (tt) counts.push({ val: tt.normal + tt.foil, label: 'In transit', color: '#5B53E0' });
     if (wt) counts.push({ val: wt, label: 'Wanted', color: '#9B51E0' });
     return m('.overlay.center', { onclick: () => state.selectedCard = null }, [

@@ -746,7 +746,7 @@ button, input, textarea { font-family: inherit; }
 
 .add-unmatched {
   background: rgba(229,72,77,0.06); border: 1px solid rgba(229,72,77,0.2);
-  border-radius: 11px; padding: 9px 12px; font-size: 12px; color: #C0353A;
+  border-radius: 11px; padding: 9px 12px; font-size: 12px; color: var(--danger);
 }
 .add-unmatched-title { font-weight: 700; margin-bottom: 3px; }
 .add-unmatched-row { opacity: 0.85; }
@@ -780,7 +780,7 @@ button, input, textarea { font-family: inherit; }
 .banner {
   background: rgba(229,72,77,0.08);
   border: 1px solid rgba(229,72,77,0.25);
-  color: #C0353A;
+  color: var(--danger);
   font-size: 13px;
   font-weight: 500;
   padding: 10px 14px;
