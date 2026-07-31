@@ -30,15 +30,37 @@ async function fetchCollection(username) {
   throw new Error('Could not reach the collection API. All proxies failed.');
 }
 
+// dotgg full card database — used to fill in sets the primary catalog
+// (riftboundindex) hasn't published yet (e.g. new sets like Vendetta).
+const DOTGG_CARDS_BASE = 'https://api.dotgg.gg/cgfw/getcards?game=riftbound';
+const DOTGG_CARDS_DEV  = '/api-proxy/cgfw/getcards?game=riftbound';
+
+async function fetchDotggCards() {
+  if (import.meta.env.DEV) return fetch(DOTGG_CARDS_DEV);
+  const encoded = encodeURIComponent(DOTGG_CARDS_BASE);
+  const proxies = [
+    `https://corsproxy.io/?${encoded}`,
+    `https://corsproxy.org/?url=${encoded}`,
+  ];
+  for (const url of proxies) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) return r;
+    } catch (_) { /* try next */ }
+  }
+  throw new Error('Could not reach the card database.');
+}
+
 // ── Static maps ────────────────────────────────────────────────────
 const SETS = [
   { id: 'OGN', label: 'Origins',         code: 'OGN' },
   { id: 'SFD', label: 'Spiritforged',    code: 'SFD' },
   { id: 'OGS', label: 'Proving Grounds', code: 'OGS' },
   { id: 'UNL', label: 'Unleashed',       code: 'UNL' },
+  { id: 'VEN', label: 'Vendetta',        code: 'VEN' },
 ];
 const EXPANSION_TO_CODE = {
-  'Origins': 'OGN', 'Spiritforged': 'SFD', 'Proving Grounds': 'OGS', 'Unleashed': 'UNL',
+  'Origins': 'OGN', 'Spiritforged': 'SFD', 'Proving Grounds': 'OGS', 'Unleashed': 'UNL', 'Vendetta': 'VEN',
 };
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic'];
 const RARITY_COLOR = {
@@ -386,7 +408,74 @@ function setSummary(setId) {
 }
 
 // ── Data loading ───────────────────────────────────────────────────
-async function loadCards() { state.cards = await getCardCatalog(); }
+const EXTRA_TTL = 24 * 60 * 60 * 1000; // 24 h
+
+// Base collectible cards only: standard rarities (units, spells, legends,
+// gear, battlefields, base runes). Excludes showcase / alt-art, promos and
+// tokens — same categories hidden for the sets served by the primary catalog.
+function isBaseCollectibleDotgg(c) {
+  const rarity = (c.rarity || '').toLowerCase();
+  if ((c.supertype || '').toLowerCase() === 'token') return false;
+  if (String(c.promo) === '1') return false;
+  return rarity === 'common' || rarity === 'uncommon' || rarity === 'rare' || rarity === 'epic';
+}
+
+function mapDotggCard(c) {
+  const code = (c.id.split('-')[0] || '').toUpperCase();
+  const num = parseInt((c.id.match(/-[A-Za-z]*(\d+)/) || [])[1] || '0', 10);
+  const colors = (Array.isArray(c.color) ? c.color : (c.color ? [c.color] : [])).filter(Boolean);
+  return {
+    id: c.id,
+    name: c.name,
+    collectorNumber: num,
+    set:      { value: { id: code, label: c.set_name } },
+    rarity:   { value: { id: (c.rarity || '').toLowerCase(), label: c.rarity } },
+    cardType: { type: c.type ? [{ id: c.type.toLowerCase(), label: c.type }] : [] },
+    domain:   { values: (colors.length ? colors : ['Colorless']).map(col => ({ id: col.toLowerCase(), label: col })) },
+    cardImage: { url: c.image },
+  };
+}
+
+// Fill in any SETS configured but not yet present in the primary catalog,
+// sourcing their cards from the dotgg database. Cached for 24 h.
+async function loadMissingSets(knownSetIds) {
+  const missing = SETS.filter(s => !knownSetIds.has(s.id)).map(s => s.id);
+  if (!missing.length) return [];
+  const cacheKey = `rb_extra_cards_${missing.join('_')}`, tsKey = `${cacheKey}_ts`;
+  const raw = localStorage.getItem(cacheKey), ts = localStorage.getItem(tsKey);
+  if (raw && ts && Date.now() - +ts < EXTRA_TTL) {
+    try { const c = JSON.parse(raw); if (Array.isArray(c) && c.length) return c; } catch (_) { /* refetch */ }
+  }
+  const res = await fetchDotggCards();
+  if (!res.ok) throw new Error(`Card database error ${res.status}`);
+  const data = await res.json();
+  const all = Array.isArray(data) ? data : (data.data || data.cards || []);
+  const wanted = new Set(missing);
+  const mapped = all
+    .filter(c => c && c.id && wanted.has((c.id.split('-')[0] || '').toUpperCase()) && isBaseCollectibleDotgg(c))
+    .map(mapDotggCard);
+  if (mapped.length) {
+    localStorage.setItem(cacheKey, JSON.stringify(mapped));
+    localStorage.setItem(tsKey, String(Date.now()));
+  }
+  return mapped;
+}
+
+async function loadCards() {
+  const cards = await getCardCatalog();
+  const knownSetIds = new Set(cards.map(c => c.set?.value?.id));
+  try {
+    const extra = await loadMissingSets(knownSetIds);
+    if (extra.length) cards.push(...extra);
+  } catch (_) { /* non-fatal: primary catalog still works */ }
+  cards.sort((a, b) => {
+    const sa = a.set?.value?.id ?? '', sb = b.set?.value?.id ?? '';
+    if (sa < sb) return -1;
+    if (sa > sb) return 1;
+    return (a.collectorNumber ?? 0) - (b.collectorNumber ?? 0);
+  });
+  state.cards = cards;
+}
 
 async function loadUserCollection(username, bust = false) {
   const key = `rb_user_v3_${username}`, tsKey = `rb_user_v3_ts_${username}`;
